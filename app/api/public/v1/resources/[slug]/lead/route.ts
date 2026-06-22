@@ -3,6 +3,9 @@
  * (FR §6.2 RESOURCE delta, NG3, NFR-SEC-03, PRD Q4).
  *
  * UNAUTHENTICATED (public submit). This is the SECURITY-CRITICAL flow:
+ *   0. RATE LIMIT (pre-deploy hardening): cap submissions per IP+slug. The 429
+ *      short-circuits BEFORE any resource lookup, submission persistence, or
+ *      signed-URL minting — abuse must not reach the side-effectful steps.
  *   1. Resolve the PUBLISHED RESOURCE by slug. 404 if missing.
  *   2. If it is NOT gated -> 400 (there is no gate to unlock here; the public
  *      content endpoint already exposes ungated downloads).
@@ -34,11 +37,20 @@ import {
   hashClientIp,
   clientIpFromHeaders,
 } from "@/lib/leadform/service";
+import { rateLimit, clientKey, tooMany } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
 /** Signed PDF URL TTL — short-lived per NFR-SEC-03. */
 const DOWNLOAD_TTL_SECONDS = 300;
+
+/**
+ * Lead-submit rate limit: 5 submissions per 10 minutes per (IP, slug). Gated
+ * resources are low-frequency by nature, so this comfortably allows genuine
+ * retries while blocking scripted enumeration of the lead funnel.
+ */
+const LEAD_LIMIT = 5;
+const LEAD_WINDOW_SEC = 10 * 60;
 
 const paramsSchema = z.object({ slug: z.string().min(1).max(300) });
 
@@ -49,6 +61,15 @@ export const POST = withRoute(
       new URLSearchParams({ slug: raw.slug }),
       paramsSchema,
     );
+
+    // (0) Rate limit FIRST — before any DB read or PDF signing. Keyed by
+    // hashed IP + slug so each gated resource has its own per-client budget.
+    // Fails open if Redis is down (rateLimit returns ok:true on error).
+    const rl = await rateLimit(clientKey(req, `lead:${slug}`), {
+      limit: LEAD_LIMIT,
+      windowSec: LEAD_WINDOW_SEC,
+    });
+    if (!rl.ok) return tooMany(rl.resetSec);
 
     // (1) Resolve the published resource.
     const item = await getPublishedByTypeSlug("RESOURCE", slug);

@@ -17,6 +17,12 @@
  * are mapped through the shared `errorResponse`, and any in-stream failure is
  * surfaced as a terminal SSE `error` frame.
  *
+ * Rate limiting (pre-deploy hardening): generations are expensive (LLM cost +
+ * latency), so we cap them per authenticated user. The limit is checked AFTER
+ * auth/validation but BEFORE the stream opens — a pre-stream 429 keeps the
+ * client's setup-vs-stream distinction intact and never starts an OpenRouter
+ * call for a throttled request.
+ *
  * Client abort: the request's AbortSignal is forwarded into the generator so the
  * upstream OpenRouter stream is cancelled and the job is marked CANCELLED.
  */
@@ -25,10 +31,19 @@ import { withRoute, parseBody, json, errorResponse } from "@/lib/api/http";
 import { requireCapability } from "@/lib/auth/guard";
 import { generateRequestSchema } from "@/lib/ai/schemas";
 import { runGeneration, type GenerationEvent } from "@/lib/ai/generate";
+import { rateLimit, hashIp, clientIpFromHeaders, tooMany } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 // Generation can run longer than the default; keep the function alive for SSE.
 export const maxDuration = 300;
+
+/**
+ * AI generation rate limit: 20 generations per hour per user. Keyed by the
+ * authenticated user id (each editor gets their own budget); falls back to the
+ * hashed client IP if no id is somehow present.
+ */
+const AI_LIMIT = 20;
+const AI_WINDOW_SEC = 60 * 60;
 
 function sseEncode(event: GenerationEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`;
@@ -45,6 +60,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   } catch (err) {
     return errorResponse(err);
   }
+
+  // Pre-stream rate limit: throttle per user (IP fallback) BEFORE opening the
+  // stream / calling OpenRouter. Fails open if Redis is unreachable.
+  const subject = user.id || `ip:${hashIp(clientIpFromHeaders(req.headers))}`;
+  const rl = await rateLimit(`ai:generate:user:${subject}`, {
+    limit: AI_LIMIT,
+    windowSec: AI_WINDOW_SEC,
+  });
+  if (!rl.ok) return tooMany(rl.resetSec);
 
   const encoder = new TextEncoder();
 

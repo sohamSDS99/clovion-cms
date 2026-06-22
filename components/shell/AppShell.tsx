@@ -54,6 +54,12 @@ const NAV: NavItem[] = [
     icon: <IconList />,
     roles: ["ADMIN", "EDITOR"],
   },
+  {
+    href: "/users",
+    label: "Users",
+    icon: <IconUsers />,
+    roles: ["ADMIN"],
+  },
 ];
 
 const ROLE_LABEL: Record<Role, string> = {
@@ -135,7 +141,15 @@ export function AppShell({
               </p>
             </div>
           </div>
-          <form action={signOutAction} className="mt-1.5">
+          <Link
+            href="/profile"
+            onClick={() => setMobileOpen(false)}
+            className="mt-1.5 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-paper-sunken hover:text-ink"
+          >
+            <IconUser />
+            My profile
+          </Link>
+          <form action={signOutAction} className="mt-0.5">
             <button
               type="submit"
               className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-paper-sunken hover:text-ink"
@@ -215,6 +229,12 @@ function IconList() {
 }
 function IconForm() {
   return <Svg><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></Svg>;
+}
+function IconUsers() {
+  return <Svg><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></Svg>;
+}
+function IconUser() {
+  return <Svg><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></Svg>;
 }
 function IconLogout() {
   return <Svg><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></Svg>;
