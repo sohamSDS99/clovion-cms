@@ -24,8 +24,11 @@ inheritance).
   JSON-LD schema generation (`lib/seo`, `/api/content/[id]/schema`).
 - AI output is **always draft-only** and never auto-publishes (hard rule). It needs an
   OpenRouter key configured in Settings (AIProviderConfig) to actually generate.
-- **Phase 3 (next):** revision diff UX, budget/grounding analytics, gated-resource lead
-  forms, webinar auto-state transitions, a11y/SEO/perf hardening.
+- **Phase 3 (done):** revision diff UX (`lib/editor/diff`), AI budget/grounding analytics
+  (`/analytics`), DB-backed org policy toggles (`OrgPolicy`), webinar auto-recorded
+  worker job, gated-resource lead forms (`lib/leadform`, signed-URL PDF release after a
+  lead submission — NFR-SEC-03), sitemap/robots, JSON-LD validation, and a11y on the UI
+  primitives. OpenRouter cost capture + KB PDF/docx parsing also landed here.
 
 ## Hard rules / conventions
 

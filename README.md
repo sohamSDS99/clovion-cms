@@ -13,8 +13,9 @@ webinars, news articles, downloadable resources, FAQ articles**.
 
 ## Status
 
-**Phase 1 + Phase 2 complete.** Full loop works: author → AI-draft (SOP + KB grounded)
-→ review → schedule → publish → served via the public read API.
+**All three phases complete.** Full loop works: author → AI-draft (SOP + KB grounded)
+→ review → schedule → publish → served via the public read API — plus revision diffs,
+AI analytics, gated-resource lead forms, and SEO/a11y/perf hardening.
 
 | Area | State |
 |---|---|
@@ -26,10 +27,8 @@ webinars, news articles, downloadable resources, FAQ articles**.
 | Public read API (`/api/public/v1`) + JSON-LD + publish webhooks | ✅ |
 | Scheduled-publish worker (BullMQ, idempotent, ±60s) | ✅ |
 | AI engine: OpenRouter, SOP, KB (pgvector), streaming in-editor AI Write | ✅ |
-| **561 tests** · typecheck · lint · build · CI | ✅ green |
-
-Phase 3 (next): revision diff UX, budget/grounding analytics, gated lead forms,
-webinar auto-transitions, a11y/SEO/perf hardening.
+| Revision diff, AI analytics, gated lead forms, sitemap/robots, a11y | ✅ |
+| **663 tests** · typecheck · lint · build · CI | ✅ green |
 
 ## Stack
 
