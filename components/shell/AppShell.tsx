@@ -31,6 +31,12 @@ const NAV: NavItem[] = [
     roles: ["ADMIN", "EDITOR"],
   },
   {
+    href: "/lead-forms",
+    label: "Lead Forms",
+    icon: <IconForm />,
+    roles: ["ADMIN", "EDITOR"],
+  },
+  {
     href: "/settings",
     label: "Settings",
     icon: <IconGear />,
@@ -206,6 +212,9 @@ function IconChart() {
 }
 function IconList() {
   return <Svg><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></Svg>;
+}
+function IconForm() {
+  return <Svg><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></Svg>;
 }
 function IconLogout() {
   return <Svg><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></Svg>;

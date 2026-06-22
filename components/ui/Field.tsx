@@ -35,6 +35,7 @@ export function FieldShell({
   hint,
   error,
   htmlFor,
+  errorId,
   children,
   className,
 }: {
@@ -42,6 +43,8 @@ export function FieldShell({
   hint?: React.ReactNode;
   error?: string | null;
   htmlFor?: string;
+  /** id assigned to the rendered error so controls can aria-describedby it. */
+  errorId?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -55,7 +58,7 @@ export function FieldShell({
       ) : null}
       {children}
       {error ? (
-        <p className="text-xs text-danger" role="alert">
+        <p id={errorId} className="text-xs text-danger" role="alert">
           {error}
         </p>
       ) : null}
@@ -71,15 +74,20 @@ export interface InputProps
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, hint, error, className, id, ...rest }, ref) => {
+  ({ label, hint, error, className, id, "aria-describedby": describedBy, ...rest }, ref) => {
     const autoId = useId();
     const inputId = id ?? autoId;
+    const errorId = `${inputId}-error`;
+    // Associate the error message with the control for screen readers (WCAG 3.3.1).
+    const describedByValue =
+      [describedBy, error ? errorId : null].filter(Boolean).join(" ") || undefined;
     return (
-      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId}>
+      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId} errorId={errorId}>
         <input
           ref={ref}
           id={inputId}
           aria-invalid={error ? true : undefined}
+          aria-describedby={describedByValue}
           className={cn(fieldBase, "h-10", className)}
           {...rest}
         />
@@ -97,16 +105,20 @@ export interface TextareaProps
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, hint, error, className, id, rows = 3, ...rest }, ref) => {
+  ({ label, hint, error, className, id, rows = 3, "aria-describedby": describedBy, ...rest }, ref) => {
     const autoId = useId();
     const inputId = id ?? autoId;
+    const errorId = `${inputId}-error`;
+    const describedByValue =
+      [describedBy, error ? errorId : null].filter(Boolean).join(" ") || undefined;
     return (
-      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId}>
+      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId} errorId={errorId}>
         <textarea
           ref={ref}
           id={inputId}
           rows={rows}
           aria-invalid={error ? true : undefined}
+          aria-describedby={describedByValue}
           className={cn(fieldBase, "py-2 leading-relaxed resize-y", className)}
           {...rest}
         />
@@ -124,15 +136,19 @@ export interface SelectProps
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, hint, error, className, id, children, ...rest }, ref) => {
+  ({ label, hint, error, className, id, children, "aria-describedby": describedBy, ...rest }, ref) => {
     const autoId = useId();
     const inputId = id ?? autoId;
+    const errorId = `${inputId}-error`;
+    const describedByValue =
+      [describedBy, error ? errorId : null].filter(Boolean).join(" ") || undefined;
     return (
-      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId}>
+      <FieldShell label={label} hint={hint} error={error} htmlFor={inputId} errorId={errorId}>
         <select
           ref={ref}
           id={inputId}
           aria-invalid={error ? true : undefined}
+          aria-describedby={describedByValue}
           className={cn(fieldBase, "h-10 cursor-pointer appearance-none pr-8", className)}
           style={{
             backgroundImage:

@@ -45,6 +45,10 @@ function isPublicPath(pathname: string): boolean {
   ) {
     return true;
   }
+  // Crawler-facing files must be publicly reachable (no login redirect).
+  if (pathname === "/sitemap.xml" || pathname === "/robots.txt") {
+    return true;
+  }
   return false;
 }
 

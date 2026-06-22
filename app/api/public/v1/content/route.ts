@@ -8,6 +8,11 @@
  *   type?   — one of BLOG|WEBINAR|NEWS|RESOURCE|FAQ
  *   limit?  — 1..100 (default 20)
  *   cursor? — id of the last item from the previous page
+ *
+ * Perf (NFR-PERF-01): the limit is hard-capped at 100 and listPublished uses a
+ * single bounded query with relation includes (no N+1). Responses are public and
+ * edge-cached with stale-while-revalidate so p95 stays well under 200ms on warm
+ * caches; publish webhooks purge the CDN on content changes.
  */
 
 import { z } from "zod";
@@ -34,5 +39,7 @@ export const GET = withRoute(async (req: Request) => {
     data: items.map(toPublicSummary),
     pagination: { nextCursor, limit },
   });
-  return withCache(res);
+  // Listing pages are cheap to revalidate and high-traffic — favour a longer
+  // shared (CDN) TTL with a generous stale window. Browser TTL stays short.
+  return withCache(res, { maxAge: 60, sMaxAge: 300, swr: 900 });
 });

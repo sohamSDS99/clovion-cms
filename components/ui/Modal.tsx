@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useId, useRef } from "react";
 import { cn } from "@/lib/ui/cn";
+import { useFocusTrap } from "./useFocusTrap";
 
 /**
- * Accessible modal dialog. Closes on Escape / backdrop click, traps initial
- * focus, restores focus on unmount, and labels itself for screen readers.
+ * Accessible modal dialog (NFR-A11Y-01, WCAG 2.1 AA). Closes on Escape / backdrop
+ * click, traps Tab focus within the dialog, focuses the first control on open,
+ * restores focus to the opener on close, locks background scroll, and labels
+ * itself via aria-labelledby (the visible title) for screen readers.
  */
 export function Modal({
   open,
@@ -23,31 +26,10 @@ export function Modal({
   size?: "sm" | "md" | "lg";
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const restoreRef = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
-  useEffect(() => {
-    if (!open) return;
-    restoreRef.current = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    // Move focus into the dialog.
-    requestAnimationFrame(() => {
-      panelRef.current
-        ?.querySelector<HTMLElement>(
-          "input,select,textarea,button,[tabindex]"
-        )
-        ?.focus();
-    });
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      restoreRef.current?.focus?.();
-    };
-  }, [open, onClose]);
+  // Focus trap + scroll lock + Escape + focus restore.
+  useFocusTrap(panelRef, open, onClose);
 
   if (!open) return null;
 
@@ -64,20 +46,24 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={typeof title === "string" ? title : undefined}
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
-          "w-full rounded border border-line bg-paper-raised shadow-pop clv-pop-in",
+          "w-full rounded border border-line bg-paper-raised shadow-pop clv-pop-in outline-none",
           widths[size]
         )}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
+          <h2 id={titleId} className="font-display text-lg font-semibold text-ink">
+            {title}
+          </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close dialog"
             className="rounded p-1 text-ink-mute hover:bg-paper-sunken hover:text-ink"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
@@ -107,12 +93,11 @@ export function Drawer({
   children: React.ReactNode;
   width?: string;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  // Same focus-trap / scroll-lock / Escape / focus-restore lifecycle as Modal.
+  useFocusTrap(panelRef, open, onClose);
 
   if (!open) return null;
   return (
@@ -121,23 +106,28 @@ export function Drawer({
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <aside
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={typeof title === "string" ? title : undefined}
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
-          "flex h-full w-full flex-col bg-paper-raised shadow-pop",
+          "flex h-full w-full flex-col bg-paper-raised shadow-pop outline-none",
           width
         )}
         style={{ animation: "clv-pop-in 0.2s cubic-bezier(0.16,1,0.3,1)" }}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 className="font-display text-base font-semibold text-ink">{title}</h2>
+          <h2 id={titleId} className="font-display text-base font-semibold text-ink">
+            {title}
+          </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close panel"
             className="rounded p-1 text-ink-mute hover:bg-paper-sunken hover:text-ink"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
