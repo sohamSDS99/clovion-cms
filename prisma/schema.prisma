@@ -201,6 +201,8 @@ model ContentItem {
   @@index([type, status])
   @@index([status, scheduledAt])
   @@index([publishedAt])
+  // Public read API lists published content ordered by publishedAt (NFR-PERF-01).
+  @@index([status, publishedAt])
   @@map("content_items")
 }
 
@@ -492,4 +494,40 @@ model OrgPolicy {
   updatedAt           DateTime @updatedAt
 
   @@map("org_policy")
+}
+
+// Gated-resource lead capture (Phase 3, NG3/NFR-SEC-03, PRD Q4).
+// A RESOURCE's typeData.leadFormId references a LeadForm; the public site shows
+// the form (not the PDF URL); on submit, a signed, expiring download URL is
+// issued. `fields` is an ordered array of { name, label, type, required }.
+model LeadForm {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  fields      Json     @default("[]")
+  isActive    Boolean  @default(true)
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions LeadSubmission[]
+
+  @@map("lead_forms")
+}
+
+model LeadSubmission {
+  id         String   @id @default(uuid()) @db.Uuid
+  leadFormId String   @db.Uuid
+  contentId  String?  @db.Uuid
+  email      String
+  data       Json     @default("{}")
+  ipHash     String?
+  createdAt  DateTime @default(now())
+
+  leadForm LeadForm @relation(fields: [leadFormId], references: [id], onDelete: Cascade)
+
+  @@index([leadFormId, createdAt])
+  @@index([contentId])
+  @@map("lead_submissions")
 }
