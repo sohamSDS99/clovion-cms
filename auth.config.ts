@@ -31,7 +31,7 @@ if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) {
 }
 
 /** Path prefixes that never require authentication. */
-const PUBLIC_PREFIXES = ["/login", "/api/auth", "/api/public"];
+const PUBLIC_PREFIXES = ["/login", "/accept-invite", "/api/auth", "/api/public"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {

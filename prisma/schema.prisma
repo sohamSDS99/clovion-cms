@@ -15,8 +15,13 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
+  provider = "postgresql"
+  // App connection. On Supabase use the POOLED connection (pgBouncer, port 6543,
+  // ?pgbouncer=true). Locally this is the Docker Postgres.
   url        = env("DATABASE_URL")
+  // Direct connection used for migrations (Supabase port 5432). Locally it can
+  // equal DATABASE_URL.
+  directUrl  = env("DIRECT_URL")
   extensions = [vector]
 }
 
@@ -122,8 +127,12 @@ model User {
   passwordHash    String?
   authorProfileId String?    @unique @db.Uuid
   lastLoginAt     DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  // Invite flow (FR-USER-01): a one-time token emailed to a new user so they
+  // can set a password and become ACTIVE. Cleared once consumed.
+  inviteToken        String?   @unique
+  inviteTokenExpires DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   // Relations
   authorProfile  AuthorProfile? @relation("UserAuthorProfile", fields: [authorProfileId], references: [id])
