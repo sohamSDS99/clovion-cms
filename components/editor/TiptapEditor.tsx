@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { editorExtensions } from "@/lib/editor/config";
 import { EditorToolbar } from "./EditorToolbar";
 import type { TiptapDoc } from "@/lib/ui/types";
@@ -13,13 +13,19 @@ import type { TiptapDoc } from "@/lib/ui/types";
  *
  * (We render a lightweight empty-state hint ourselves rather than pulling the
  * optional @tiptap/extension-placeholder package.)
+ *
+ * Optionally lifts the live Editor instance up via `onReady` so sibling panels
+ * (e.g. the AI Write panel) can read the current selection and insert content
+ * through ProseMirror commands. The editor stays the single source of truth.
  */
 export function TiptapEditor({
   initialDoc,
   onChange,
+  onReady,
 }: {
   initialDoc: TiptapDoc;
   onChange: (doc: TiptapDoc) => void;
+  onReady?: (editor: Editor | null) => void;
 }) {
   const editor = useEditor({
     // Avoid SSR hydration mismatch warnings in Next App Router.
@@ -36,6 +42,13 @@ export function TiptapEditor({
     },
     onUpdate: ({ editor }) => onChange(editor.getJSON() as TiptapDoc),
   });
+
+  // Expose the editor instance upward once it is created (and clear on unmount).
+  useEffect(() => {
+    onReady?.(editor ?? null);
+    return () => onReady?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
 
   // Keep the editor in sync if the document is replaced externally (e.g. a
   // revision restore). Compare serialized JSON to avoid clobbering typing.

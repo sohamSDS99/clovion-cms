@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { Editor } from "@tiptap/react";
 import { TiptapEditor } from "./TiptapEditor";
 import { SeoPanel } from "./SeoPanel";
+import { SchemaPanel } from "./SchemaPanel";
 import { CoverImage } from "./CoverImage";
 import { TypeFields } from "./TypeFields";
 import { ActionBar } from "./ActionBar";
 import { RevisionDrawer } from "./RevisionDrawer";
+import { AiWritePanel, type AiInsertPayload } from "./AiWritePanel";
+import { AiAssistedBadge } from "./AiAssistedBadge";
+import { applyAiInsert } from "./applyAiInsert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
 import { Loading, InlineError } from "@/components/ui/Feedback";
@@ -17,6 +22,7 @@ import { ApiError, api, errorMessage } from "@/lib/ui/client";
 import { contentTypeLabel, slugFromTitle } from "@/lib/ui/format";
 import type {
   ContentItem,
+  ContentRevision,
   FieldError,
   PublishGateDetails,
   Role,
@@ -46,6 +52,9 @@ const AUTOSAVE_MS = 4000; // <= 10s idle requirement (FR-CONTENT-03).
  * Loads the item, holds an editable draft, autosaves on idle, supports manual
  * save, drives lifecycle transitions, and surfaces publish-gate field errors
  * inline next to the offending fields.
+ *
+ * Wave-2 additions: an AI Write panel (streamed draft generation merged only on
+ * explicit Insert), an AI-assisted review badge, and a JSON-LD schema panel.
  */
 export function ContentEditor({
   contentId,
@@ -68,6 +77,15 @@ export function ContentEditor({
   const [gateWarnings, setGateWarnings] = useState<FieldError[]>([]);
   const [revOpen, setRevOpen] = useState(false);
 
+  // ── AI Write state ──────────────────────────────────────────────────────
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false); // session/badge flag
+  const [selection, setSelection] = useState<{ has: boolean; text: string }>({
+    has: false,
+    text: "",
+  });
+  const editorRef = useRef<Editor | null>(null);
+
   const draftRef = useRef<Draft | null>(null);
   draftRef.current = draft;
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,6 +99,7 @@ export function ContentEditor({
         if (!active) return;
         setItem(it);
         setDraft(toDraft(it));
+        setAiAssisted(currentRevisionIsAi(it));
       })
       .catch((e) => active && setLoadError(errorMessage(e)));
     return () => {
@@ -88,9 +107,9 @@ export function ContentEditor({
     };
   }, [contentId]);
 
-  // ── Persist helper (manual + autosave share this) ───────────────────────
+  // ── Persist helper (manual + autosave + AI insert share this) ────────────
   const persist = useCallback(
-    async (source: "manual" | "autosave") => {
+    async (source: "manual" | "autosave" | "ai_generation") => {
       const d = draftRef.current;
       if (!d) return;
       setSaveState("saving");
@@ -107,6 +126,8 @@ export function ContentEditor({
         });
         setItem(updated);
         setSaveState("saved");
+        // A manual save clears the AI-assisted badge (human reviewed & saved).
+        if (source === "manual") setAiAssisted(false);
         if (source === "manual") toast.success("Saved.");
       } catch (e) {
         setSaveState("error");
@@ -152,6 +173,55 @@ export function ContentEditor({
       markDirty();
     },
     [markDirty]
+  );
+
+  // ── AI Write integration ────────────────────────────────────────────────
+  // Track the editor instance + its selection so the AI panel can offer
+  // "Rewrite selection" and insert via ProseMirror commands.
+  const handleEditorReady = useCallback((editor: Editor | null) => {
+    editorRef.current = editor;
+    if (!editor) {
+      setSelection({ has: false, text: "" });
+      return;
+    }
+    const sync = () => {
+      const { from, to, empty } = editor.state.selection;
+      const text = empty ? "" : editor.state.doc.textBetween(from, to, " ");
+      setSelection({ has: !empty && text.trim().length > 0, text });
+    };
+    editor.on("selectionUpdate", sync);
+    editor.on("transaction", sync);
+    sync();
+  }, []);
+
+  // Apply a generated draft to the live editor (explicit Insert only), then
+  // PATCH with source:"ai_generation" so the server tags an AI revision and the
+  // "review before publish" badge persists until a human saves manually.
+  const handleAiInsert = useCallback(
+    async (payload: AiInsertPayload) => {
+      const editor = editorRef.current;
+      if (!editor) {
+        toast.error("Editor is not ready.");
+        return;
+      }
+      const nextDoc = applyAiInsert(
+        editor,
+        payload.mode,
+        payload.strategy,
+        payload.result.tiptap
+      );
+      // Sync local draft, mark dirty, then persist as an AI revision.
+      setDraft((prev) => (prev ? { ...prev, body: nextDoc } : prev));
+      setAiAssisted(true);
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+      // Use the just-built doc rather than the (async) state for the PATCH.
+      draftRef.current = draftRef.current
+        ? { ...draftRef.current, body: nextDoc }
+        : draftRef.current;
+      await persist("ai_generation");
+      toast.success("AI draft inserted. Review before publishing.");
+    },
+    [persist, toast]
   );
 
   // ── Lifecycle transition with publish-gate handling ─────────────────────
@@ -235,8 +305,21 @@ export function ContentEditor({
             </p>
             <SaveIndicator state={saveState} />
           </div>
+          <AiAssistedBadge visible={aiAssisted} />
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setAiOpen(true)}
+            title="Generate a draft with AI"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" />
+              <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
+            </svg>
+            AI Write
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setRevOpen(true)}>
             History
           </Button>
@@ -310,6 +393,7 @@ export function ContentEditor({
           <TiptapEditor
             initialDoc={draft.body}
             onChange={(body) => update({ body })}
+            onReady={handleEditorReady}
           />
         </div>
 
@@ -336,6 +420,10 @@ export function ContentEditor({
             onChange={(patch) => update({ seo: { ...draft.seo, ...patch } })}
             fieldErrors={gateErrors}
           />
+          <SchemaPanel
+            contentId={contentId}
+            initialSchema={schemaMarkupOf(item)}
+          />
           <div className="px-1">
             <button
               onClick={handleDelete}
@@ -347,6 +435,16 @@ export function ContentEditor({
         </aside>
       </div>
 
+      <AiWritePanel
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        contentId={contentId}
+        contentType={item.type}
+        hasSelection={selection.has}
+        selectedText={selection.text}
+        onInsert={handleAiInsert}
+      />
+
       <RevisionDrawer
         open={revOpen}
         onClose={() => setRevOpen(false)}
@@ -355,6 +453,7 @@ export function ContentEditor({
         onRestored={(it) => {
           setItem(it);
           setDraft(toDraft(it));
+          setAiAssisted(currentRevisionIsAi(it));
         }}
       />
     </div>
@@ -372,6 +471,22 @@ function toDraft(it: ContentItem): Draft {
     typeData: it.typeData ?? {},
     coverAssetId: it.coverAssetId,
   };
+}
+
+/**
+ * Best-effort read of the item's current revision source for the AI-assisted
+ * badge. The list endpoint isn't fetched here, so we look for an inlined hint
+ * the API may provide (currentRevision.source); absent that the badge is driven
+ * by the per-session insert flag instead.
+ */
+function currentRevisionIsAi(it: ContentItem): boolean {
+  const inlined = (it as { currentRevision?: ContentRevision }).currentRevision;
+  return inlined?.source === "AI_GENERATION";
+}
+
+/** Read schemaMarkup off the item without coupling to the shared type. */
+function schemaMarkupOf(it: ContentItem): unknown {
+  return (it as { schemaMarkup?: unknown }).schemaMarkup ?? null;
 }
 
 function SaveIndicator({ state }: { state: SaveState }) {

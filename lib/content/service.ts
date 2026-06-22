@@ -256,7 +256,12 @@ export async function updateContent(
     }
   }
 
-  const source = input.source === "autosave" ? "AUTOSAVE" : "MANUAL";
+  const source =
+    input.source === "autosave"
+      ? "AUTOSAVE"
+      : input.source === "ai_generation"
+        ? "AI_GENERATION"
+        : "MANUAL";
 
   // Merge seo/typeData so partial updates don't wipe untouched keys.
   const nextSeo = (input.seo ?? existing.seo) as Prisma.InputJsonValue;
@@ -289,6 +294,10 @@ export async function updateContent(
           input.categoryId === undefined ? undefined : input.categoryId,
         seo: input.seo === undefined ? undefined : nextSeo,
         typeData: input.typeData === undefined ? undefined : nextTypeData,
+        schemaMarkup:
+          input.schemaMarkup === undefined
+            ? undefined
+            : ((input.schemaMarkup ?? {}) as Prisma.InputJsonValue),
         authorProfileId: input.authorProfileId ?? undefined,
         currentRevisionId: revision.id,
         updatedById: user.id,

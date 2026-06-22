@@ -181,8 +181,16 @@ export const updateContentSchema = z
     coverAssetId: uuid.nullable().optional(),
     authorProfileId: uuid.optional(),
     revisionNote: z.string().max(500).optional(),
-    /** Save intent: "manual" (default, applied in service) or "autosave". */
-    source: z.enum(["manual", "autosave"]).optional(),
+    /**
+     * schema.org JSON-LD override stored on ContentItem.schemaMarkup. Must be a
+     * JSON object; `null` clears it. Persisted as-is (no revision side effect).
+     */
+    schemaMarkup: z.record(z.string(), z.any()).nullable().optional(),
+    /**
+     * Save intent: "manual" (default), "autosave", or "ai_generation" (an
+     * AI-assisted draft merge -> writes an AI_GENERATION revision).
+     */
+    source: z.enum(["manual", "autosave", "ai_generation"]).optional(),
   })
   .strict();
 export type UpdateContentInput = z.infer<typeof updateContentSchema>;
