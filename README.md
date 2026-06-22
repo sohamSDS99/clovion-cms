@@ -13,15 +13,23 @@ webinars, news articles, downloadable resources, FAQ articles**.
 
 ## Status
 
-**Phase 1 (MVP) — foundation in place.** Phase 2 = AI writing engine (OpenRouter + SOP +
-Knowledge Base); config tables are scaffolded but generation is not wired yet.
+**Phase 1 + Phase 2 complete.** Full loop works: author → AI-draft (SOP + KB grounded)
+→ review → schedule → publish → served via the public read API.
 
 | Area | State |
 |---|---|
 | Prisma schema (all §4 entities) + pgvector | ✅ migrated |
-| Workflow state machine + role-gated transitions + publish gate | ✅ + unit tests |
-| Auth.js v5 (credentials + OAuth) + RBAC capability matrix | ✅ + unit tests |
-| Content/media/public APIs, Tiptap editor UI, scheduled-publish worker | ⏳ next |
+| Workflow state machine + role-gated transitions + publish gate | ✅ + tests |
+| Auth.js v5 (credentials + OAuth) + RBAC capability matrix | ✅ + tests |
+| Content CRUD + lifecycle API, media library + variants, audit log | ✅ |
+| Tiptap editor UI + admin shell (SEO/SERP, cover, per-type fields, autosave) | ✅ |
+| Public read API (`/api/public/v1`) + JSON-LD + publish webhooks | ✅ |
+| Scheduled-publish worker (BullMQ, idempotent, ±60s) | ✅ |
+| AI engine: OpenRouter, SOP, KB (pgvector), streaming in-editor AI Write | ✅ |
+| **561 tests** · typecheck · lint · build · CI | ✅ green |
+
+Phase 3 (next): revision diff UX, budget/grounding analytics, gated lead forms,
+webinar auto-transitions, a11y/SEO/perf hardening.
 
 ## Stack
 

@@ -15,12 +15,17 @@ inheritance).
 
 ## Build phases
 
-- **Phase 1 (current):** auth/roles, shared Tiptap editor, 5 content types, lifecycle
+- **Phase 1 (done):** auth/roles, shared Tiptap editor, 5 content types, lifecycle
   (draft → in_review → scheduled → published → unpublished/archived), media library,
-  public read API, audit log.
-- **Phase 2:** AI writing engine — OpenRouter (sole LLM gateway), Writing SOP, Knowledge
-  Base (pgvector retrieval). Config tables exist; generation not wired yet.
-- AI output is **always draft-only** and never auto-publishes (hard rule).
+  public read API (`/api/public/v1`), scheduled-publish worker (`lib/jobs`), audit log.
+- **Phase 2 (done):** AI writing engine — OpenRouter (sole LLM gateway, `lib/ai`),
+  Writing SOP (`lib/sop`), Knowledge Base ingestion + pgvector retrieval (`lib/kb`),
+  in-editor AI Write (streaming, `/api/ai/generate` + `components/editor`), per-type
+  JSON-LD schema generation (`lib/seo`, `/api/content/[id]/schema`).
+- AI output is **always draft-only** and never auto-publishes (hard rule). It needs an
+  OpenRouter key configured in Settings (AIProviderConfig) to actually generate.
+- **Phase 3 (next):** revision diff UX, budget/grounding analytics, gated-resource lead
+  forms, webinar auto-state transitions, a11y/SEO/perf hardening.
 
 ## Hard rules / conventions
 
