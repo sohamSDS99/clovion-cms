@@ -36,6 +36,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://clovion:clovion@localhost:5432/clovion_cms?schema=public
+      DIRECT_URL: postgresql://clovion:clovion@localhost:5432/clovion_cms?schema=public
       REDIS_URL: redis://localhost:6379
       AUTH_SECRET: ci-test-secret-not-for-production
       ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcy0xMjM0NTY=
@@ -71,8 +72,3 @@ jobs:
 
       - name: Build
         run: pnpm build
-        env:
-          AUTH_SECRET: ci-test-secret-not-for-production
-          ENCRYPTION_KEY: dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcy0xMjM0NTY=
-          DATABASE_URL: postgresql://clovion:clovion@localhost:5432/clovion_cms?schema=public
-          DIRECT_URL: postgresql://clovion:clovion@localhost:5432/clovion_cms?schema=public
