@@ -7,7 +7,13 @@
 FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+# openssl: required by the Prisma query engine (avoids libssl detection fallback).
+# ca-certificates: outbound HTTPS (OpenRouter, S3, webhooks).
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+# Activate the pinned pnpm at build time so containers don't download it on boot.
+RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
 WORKDIR /app
 
 # ── deps ──────────────────────────────────────────────────────────────────────
@@ -19,12 +25,11 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Dummy build-time env so module evaluation never trips; real values are
-# injected at runtime by the platform. No secrets are baked into the image.
+# Dummy DB URLs so the Prisma datasource resolves during build. The app never
+# connects at build time (DB-touching routes are force-dynamic). Real runtime
+# values are injected by the platform; no secrets are baked into the image.
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public" \
-    DIRECT_URL="postgresql://build:build@localhost:5432/build?schema=public" \
-    AUTH_SECRET="build-time-only-not-used-at-runtime" \
-    ENCRYPTION_KEY="YnVpbGQtdGltZS1lbmNyeXB0aW9uLWtleS0zMmJ5dGVz"
+    DIRECT_URL="postgresql://build:build@localhost:5432/build?schema=public"
 RUN pnpm prisma generate && pnpm build
 
 # ── runner ────────────────────────────────────────────────────────────────────

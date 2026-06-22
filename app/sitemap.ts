@@ -17,28 +17,36 @@ import { canonicalUrl, absoluteUrl } from "@/lib/seo/canonical";
 import { isNoIndex } from "@/lib/seo/robots-flags";
 
 export const runtime = "nodejs";
-// Revalidate the sitemap periodically rather than per request.
-export const revalidate = 3600;
+// Generated per request, NOT at build time — the build environment (Docker /
+// Railply / CI) has no database, so this must never run during `next build`.
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // When the whole site is flagged noindex, emit only the homepage entry.
-  if (isNoIndex()) {
-    return [{ url: absoluteUrl(), lastModified: new Date() }];
-  }
-
-  const rows = await prisma.contentItem.findMany({
-    where: { status: "PUBLISHED", deletedAt: null },
-    // Lightweight projection — only what a sitemap URL needs.
-    select: { slug: true, type: true, updatedAt: true },
-    orderBy: { updatedAt: "desc" },
-  });
-
   const home: MetadataRoute.Sitemap[number] = {
     url: absoluteUrl(),
     lastModified: new Date(),
     changeFrequency: "daily",
     priority: 1,
   };
+
+  // When the whole site is flagged noindex, emit only the homepage entry.
+  if (isNoIndex()) {
+    return [home];
+  }
+
+  // Resilient: a DB hiccup yields the homepage-only sitemap, never a 500/build break.
+  let rows: { slug: string; type: "BLOG" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ"; updatedAt: Date }[] = [];
+  try {
+    rows = await prisma.contentItem.findMany({
+      where: { status: "PUBLISHED", deletedAt: null },
+      // Lightweight projection — only what a sitemap URL needs.
+      select: { slug: true, type: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+  } catch (error) {
+    console.error("[sitemap] DB query failed; serving homepage-only sitemap:", error);
+    return [home];
+  }
 
   const entries: MetadataRoute.Sitemap = rows.map((row) => ({
     url: canonicalUrl(row.type, row.slug),
