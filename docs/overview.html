@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clovion CMS — Build Overview</title>
+<style>
+  :root{
+    --paper:#faf9f6; --raised:#fff; --sunken:#f3f1ea;
+    --ink:#1c1a17; --soft:#4a463f; --mute:#79736a; --faint:#a8a195;
+    --line:#e6e2d8; --line2:#d6d1c4;
+    --accent:#1f6b53; --accent2:#18563f; --accent-soft:#e7f0ea;
+    --amber:#b06f17; --blue:#2563a8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;max-width:100vw}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .wrap{max-width:980px;margin:0 auto;padding:48px 24px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:36px}
+  .badge{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--accent2);
+    font-size:13px;font-weight:600;padding:5px 12px;border-radius:999px;letter-spacing:.01em}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  h1{font-size:clamp(34px,6vw,52px);line-height:1.04;margin:18px 0 8px;letter-spacing:-.02em;font-weight:600}
+  .sub{color:var(--soft);font-size:18px;max-width:60ch}
+  .repo{margin-top:14px;font-size:14px;color:var(--mute)}
+  .repo a{color:var(--accent2);text-decoration:none;border-bottom:1px solid var(--line2)}
+  h2{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);font-weight:700;
+    margin:48px 0 18px;font-family:inherit}
+  .loop{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--raised);
+    border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .step{font-weight:600;font-size:15px}
+  .arrow{color:var(--accent);font-weight:700}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .stat{background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:18px 18px}
+  .stat .n{font-size:30px;font-weight:700;letter-spacing:-.01em}
+  .stat .l{font-size:13px;color:var(--mute);margin-top:2px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .card{background:var(--raised);border:1px solid var(--line);border-radius:14px;padding:20px;
+    box-shadow:0 1px 2px rgba(28,26,23,.04)}
+  .card .ph{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent2);
+    background:var(--accent-soft);display:inline-block;padding:3px 9px;border-radius:6px;margin-bottom:12px}
+  .card h3{margin:0 0 10px;font-size:18px;font-weight:600;letter-spacing:-.01em}
+  .card ul{margin:0;padding-left:18px}
+  .card li{font-size:14.5px;color:var(--soft);margin:5px 0}
+  .stack{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{background:var(--sunken);border:1px solid var(--line2);border-radius:8px;padding:6px 12px;font-size:13.5px;color:var(--soft)}
+  .run{background:var(--ink);color:#f1efe9;border-radius:14px;padding:22px 24px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    font-size:13.5px;line-height:1.85;overflow-x:auto}
+  .run .c{color:#9fcab a}
+  .run .cm{color:#8a8378}
+  .note{background:var(--accent-soft);border:1px solid #cfe2d7;border-radius:12px;padding:16px 18px;color:var(--accent2);font-size:14.5px}
+  .note b{color:var(--accent2)}
+  footer{margin-top:54px;padding-top:22px;border-top:1px solid var(--line);color:var(--faint);font-size:13px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}.stat-row{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge"><span class="dot"></span> All 3 phases complete · CI green</span>
+    <h1 class="serif">Clovion CMS</h1>
+    <p class="sub">A standalone, headless content engine for the Clovion AI marketing site — authoring, an AI writing engine, and a public read API, fully separate from the core product.</p>
+    <p class="repo">github.com/sohamSDS99/<a href="https://github.com/sohamSDS99/clovion-cms">clovion-cms</a></p>
+  </header>
+
+  <h2>The loop it delivers</h2>
+  <div class="loop">
+    <span class="step">Author</span><span class="arrow">→</span>
+    <span class="step">AI-draft <span style="color:var(--mute);font-weight:400">(SOP + KB grounded)</span></span><span class="arrow">→</span>
+    <span class="step">Review</span><span class="arrow">→</span>
+    <span class="step">Schedule</span><span class="arrow">→</span>
+    <span class="step">Publish</span><span class="arrow">→</span>
+    <span class="step">Public read API</span>
+  </div>
+
+  <h2>Verified</h2>
+  <div class="stat-row">
+    <div class="stat"><div class="n">663</div><div class="l">tests passing</div></div>
+    <div class="stat"><div class="n">28</div><div class="l">routes built</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">content types</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">roles (RBAC)</div></div>
+  </div>
+
+  <h2>What's built</h2>
+  <div class="grid">
+    <div class="card">
+      <span class="ph">Phase 1 — Foundation</span>
+      <h3 class="serif">Author · review · publish</h3>
+      <ul>
+        <li>Auth.js v5 + 5-role RBAC (server-enforced)</li>
+        <li>Lifecycle state machine + publish gate</li>
+        <li>Tiptap editor, SEO/SERP, autosave, revisions</li>
+        <li>Media library + image variants</li>
+        <li>Public read API + JSON-LD + webhooks</li>
+        <li>Scheduled-publish worker · audit log</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="ph">Phase 2 — AI engine</span>
+      <h3 class="serif">Grounded AI Write</h3>
+      <ul>
+        <li>OpenRouter (model-agnostic, encrypted key)</li>
+        <li>Writing SOP — versioned, one active per type</li>
+        <li>Knowledge Base — chunk + embed + pgvector</li>
+        <li>Streaming in-editor AI Write (4 modes)</li>
+        <li>Deterministic SOP+KB prompt assembly</li>
+        <li>Per-type JSON-LD schema generation</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="ph">Phase 3 — Polish &amp; scale</span>
+      <h3 class="serif">Depth &amp; hardening</h3>
+      <ul>
+        <li>Revision diff (compare two versions)</li>
+        <li>AI budget / grounding / acceptance analytics</li>
+        <li>Gated lead forms → signed-URL PDF release</li>
+        <li>DB-backed policy toggles · webinar auto-state</li>
+        <li>sitemap / robots / JSON-LD validation</li>
+        <li>A11y on UI primitives · CDN cache headers</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Stack</h2>
+  <div class="stack">
+    <span class="pill">Next.js 15 (App Router)</span>
+    <span class="pill">TypeScript</span>
+    <span class="pill">PostgreSQL + Prisma</span>
+    <span class="pill">pgvector</span>
+    <span class="pill">Redis + BullMQ</span>
+    <span class="pill">Auth.js v5</span>
+    <span class="pill">Tiptap</span>
+    <span class="pill">S3 / MinIO</span>
+    <span class="pill">OpenRouter</span>
+    <span class="pill">Tailwind</span>
+    <span class="pill">Vitest</span>
+  </div>
+
+  <h2>Run it locally</h2>
+  <div class="run">
+    <span class="cm"># from ~/clovion-cms</span><br>
+    pnpm install &amp;&amp; pnpm db:up<br>
+    pnpm prisma:migrate &amp;&amp; pnpm db:seed<br>
+    pnpm dev <span class="cm"># → http://localhost:3007</span><br>
+    pnpm worker <span class="cm"># scheduled-publish + webinar jobs (2nd terminal)</span><br>
+    <br>
+    <span class="cm"># login: admin@clovion.ai / ChangeMe123!</span>
+  </div>
+
+  <h2>To switch on live AI</h2>
+  <div class="note">
+    <b>Settings → AI</b> → paste an OpenRouter API key, choose a default + embedding model, Test connection.
+    Then <b>AI Write</b> in the editor streams real drafts grounded in your active SOP + Knowledge Base.
+    Without a key, the engine returns a graceful "not configured" message — everything else runs fully.
+  </div>
+
+  <footer>
+    Clovion CMS · headless, single-tenant · all status changes audited · AI output is always draft-only and never auto-publishes.
+  </footer>
+</div>
+</body>
+</html>
