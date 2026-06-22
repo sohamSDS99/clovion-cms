@@ -28,6 +28,8 @@ import {
   type TransitionAction,
 } from "@/lib/workflow";
 import { recordAudit } from "@/lib/audit/service";
+import { renderTiptapToHtml } from "@/lib/public/render";
+import { firePublishWebhook } from "@/lib/webhooks/publish";
 import {
   ConflictError,
   NotFoundError,
@@ -49,11 +51,22 @@ const EMPTY_DOC: Prisma.InputJsonValue = {
 };
 
 /**
- * TODO(render hook): after a publish, the rendered/cached `bodyHtml` is produced
- * by a separate rendering module. We intentionally do NOT render HTML here.
+ * On publish, render the canonical Tiptap JSON to HTML and cache it on the row
+ * so the public read API can serve it without re-rendering (FR-CONTENT-05).
+ * Best-effort: a render failure must not abort the publish.
  */
-async function renderAndCache(_item: ContentItem): Promise<void> {
-  // No-op placeholder — wired up by the rendering pipeline elsewhere.
+async function renderAndCache(item: ContentItem): Promise<string | null> {
+  try {
+    const html = renderTiptapToHtml(item.body);
+    await prisma.contentItem.update({
+      where: { id: item.id },
+      data: { bodyHtml: html },
+    });
+    return html;
+  } catch (error) {
+    console.error("[content] bodyHtml render/cache failed:", error);
+    return null;
+  }
 }
 
 /** Build a workflow PublishCandidate from a persisted ContentItem (FR-CONTENT-09). */
@@ -466,7 +479,8 @@ export async function transitionContent(
   // TODO(render hook): regenerate + cache bodyHtml after publish. Rendering is
   // implemented elsewhere; this is intentionally a no-op call.
   if (target === "PUBLISHED") {
-    await renderAndCache(updated);
+    const html = await renderAndCache(updated);
+    if (html !== null) updated.bodyHtml = html;
   }
 
   // 5. Audit the status change.
@@ -477,6 +491,14 @@ export async function transitionContent(
     action: "status_changed",
     diff: { from, to: target, transition: action },
   });
+
+  // 6. Notify the public site to (re)fetch / purge its cache. Best-effort —
+  // firePublishWebhook never throws into the caller (§6.2 publish-to-site).
+  if (target === "PUBLISHED") {
+    await firePublishWebhook(updated, "publish");
+  } else if (target === "UNPUBLISHED") {
+    await firePublishWebhook(updated, "unpublish");
+  }
 
   return updated;
 }
