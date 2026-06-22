@@ -46,6 +46,12 @@ export interface Usage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /**
+   * Upstream cost in USD for this generation. Present only when usage accounting
+   * is requested (`usage: { include: true }`) and the model/provider reports it.
+   * See `extractCostUsd` in generate.ts for how this is consumed.
+   */
+  cost?: number;
 }
 
 export interface ChatCompletionResult {
@@ -137,7 +143,15 @@ export function createOpenRouterClient(apiKey: string): OpenRouterClient {
         messages,
         ...(temperature !== undefined ? { temperature } : {}),
         ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
-        ...(stream ? { stream: true } : {}),
+        // OpenRouter usage accounting (cost capture, FR cost): asking for
+        // `usage: { include: true }` makes the provider emit a final usage block
+        // carrying `cost` (USD). For streaming we also set the OpenAI-compatible
+        // `stream_options.include_usage` so the usage frame is flushed in-stream
+        // before [DONE]. Ref: https://openrouter.ai/docs/use-cases/usage-accounting
+        usage: { include: true },
+        ...(stream
+          ? { stream: true, stream_options: { include_usage: true } }
+          : {}),
       };
       const request = fetch(`${baseUrl()}/chat/completions`, {
         method: "POST",

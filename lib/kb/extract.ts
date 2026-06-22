@@ -6,16 +6,15 @@
  * Source handling:
  *  - PASTED_TEXT: passthrough (raw is already plain text).
  *  - URL:         fetch the URL, strip <script>/<style>/tags to readable text.
- *  - DOC / PDF:   NO native parser dependency is installed and we must not add
- *                 new deps in this wave. We therefore treat `rawContent` as
- *                 already-extracted text (the upload pipeline is expected to
- *                 have run extraction before persisting). This is an honest
- *                 limitation — see TODO below.
+ *  - PDF:         parse binary bytes with `pdf-parse` (dynamically imported).
+ *  - DOC:         parse .docx bytes with `mammoth.extractRawText` (dynamic import).
  *
- * TODO(phase2): wire real document parsing for DOC (e.g. mammoth) and PDF
- * (e.g. pdf-parse / pdfjs) so binary uploads can be ingested directly instead
- * of relying on pre-extracted text. Tracked as a follow-up; intentionally NOT
- * adding the dependency here.
+ * For PDF/DOC the caller may supply the raw bytes (a Buffer or a base64 string)
+ * via the `binary` argument; we run the appropriate parser. When no binary is
+ * supplied we fall back to treating `raw` as already-extracted text (the upload
+ * pipeline may have run extraction before persisting) so existing behavior is
+ * preserved. Parsers are dynamically imported INSIDE the function so the native
+ * deps never load at module top (keeps imports cheap + test-safe).
  */
 import { BadRequestError } from "@/lib/api/http";
 
@@ -23,6 +22,9 @@ export type KbSourceType = "DOC" | "URL" | "PASTED_TEXT" | "PDF";
 
 /** Max bytes we'll read from a remote URL to avoid unbounded fetches. */
 const MAX_URL_BYTES = 5_000_000;
+
+/** Raw binary input for DOC/PDF extraction — a Node Buffer or base64 string. */
+export type BinaryInput = Buffer | string;
 
 /**
  * Very small HTML -> text reducer. Drops scripts/styles/head metadata, converts
@@ -88,13 +90,64 @@ async function extractFromUrl(url: string): Promise<string> {
   return htmlToText(raw);
 }
 
+/** Normalize a Buffer | base64 string into a Buffer for the binary parsers. */
+function toBuffer(binary: BinaryInput): Buffer {
+  if (Buffer.isBuffer(binary)) return binary;
+  // Treat strings as base64-encoded bytes.
+  return Buffer.from(binary, "base64");
+}
+
+/**
+ * Extract text from PDF bytes using `pdf-parse` (dynamically imported so the
+ * native dep never loads at module top). Honest error on parse failure.
+ */
+async function extractFromPdf(binary: BinaryInput): Promise<string> {
+  const buffer = toBuffer(binary);
+  try {
+    // pdf-parse exports a CJS default function; interop-safe access.
+    const mod = (await import("pdf-parse")) as unknown as {
+      default?: (data: Buffer) => Promise<{ text: string }>;
+    };
+    const pdfParse =
+      mod.default ?? (mod as unknown as (data: Buffer) => Promise<{ text: string }>);
+    const result = await pdfParse(buffer);
+    return (result.text ?? "").trim();
+  } catch (err) {
+    throw new BadRequestError(
+      `Failed to parse PDF: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
+/**
+ * Extract text from .docx bytes using `mammoth.extractRawText` (dynamic import).
+ * Honest error on parse failure.
+ */
+async function extractFromDocx(binary: BinaryInput): Promise<string> {
+  const buffer = toBuffer(binary);
+  try {
+    const mammoth = (await import("mammoth")) as unknown as {
+      extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }>;
+    };
+    const result = await mammoth.extractRawText({ buffer });
+    return (result.value ?? "").trim();
+  } catch (err) {
+    throw new BadRequestError(
+      `Failed to parse DOCX: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
 /**
  * Extracts plain text for the given source. `raw` is the stored
- * `KnowledgeBaseItem.rawContent` (for URL it holds the URL string).
+ * `KnowledgeBaseItem.rawContent` (for URL it holds the URL string; for DOC/PDF
+ * it may hold already-extracted text). `binary` carries raw bytes for DOC/PDF
+ * uploads when available — when present it takes precedence over `raw`.
  */
 export async function extractText(
   sourceType: KbSourceType,
-  raw: string
+  raw: string,
+  binary?: BinaryInput | null
 ): Promise<string> {
   switch (sourceType) {
     case "PASTED_TEXT":
@@ -103,11 +156,13 @@ export async function extractText(
     case "URL":
       return extractFromUrl(raw);
 
-    case "DOC":
     case "PDF":
-      // No parser dependency available (see module TODO). We accept text that
-      // was already extracted upstream and stored in rawContent.
-      return (raw ?? "").trim();
+      // Prefer parsing supplied bytes; otherwise fall back to pre-extracted text.
+      return binary ? extractFromPdf(binary) : (raw ?? "").trim();
+
+    case "DOC":
+      // Prefer parsing supplied .docx bytes; otherwise pre-extracted text.
+      return binary ? extractFromDocx(binary) : (raw ?? "").trim();
 
     default: {
       // Exhaustiveness guard — should be unreachable given the union.

@@ -151,15 +151,17 @@ async function* parseSseStream(
 }
 
 /**
- * OpenRouter streams a `cost` in usage on some models; otherwise we leave cost at
- * 0 (the editor still gets accurate token counts). We never guess a price.
+ * OpenRouter usage accounting (FR cost capture): when the request is sent with
+ * `usage: { include: true }` (+ `stream_options.include_usage` for streams),
+ * the provider's final usage frame carries a `cost` field in USD. We read it
+ * straight off the typed `Usage.cost`. If the provider omits it we leave cost at
+ * 0 (the editor still gets accurate prompt/completion token counts) — we never
+ * guess a price. Ref: https://openrouter.ai/docs/use-cases/usage-accounting
  */
 function extractCostUsd(usage: Usage | null): number {
   if (!usage) return 0;
-  const maybeCost = (usage as unknown as { cost?: number }).cost;
-  return typeof maybeCost === "number" && Number.isFinite(maybeCost)
-    ? maybeCost
-    : 0;
+  const cost = usage.cost;
+  return typeof cost === "number" && Number.isFinite(cost) ? cost : 0;
 }
 
 /**

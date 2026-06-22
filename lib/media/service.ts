@@ -18,6 +18,7 @@ import {
 } from "@/lib/media/storage";
 import { extractImageMeta, generateVariants } from "@/lib/media/variants";
 import { validateUpload, type MediaKind } from "@/lib/media/limits";
+import { findEmbeddedAssetRefs } from "./embeds";
 
 /** Raw upload payload extracted from the multipart request. */
 export interface UploadFile {
@@ -191,22 +192,41 @@ export async function updateMetadata(
 }
 
 /**
- * FR-MEDIA-04 — Find structured references to an asset.
+ * Re-export the pure inline-embed helpers (defined in ./embeds to keep them
+ * free of Prisma/next-auth so they stay unit-testable).
+ */
+export { findEmbeddedAssetRefs, type EmbedAssetMatch } from "./embeds";
+
+/**
+ * FR-MEDIA-04 — Find references to an asset.
  *
- * Scans the known FK-style / JSON reference points:
- *   - ContentItem.coverAssetId
- *   - ContentItem.seo->>'og_image_asset_id'   (JSON path)
- *   - ContentItem.typeData->>'pdfAssetId'      (JSON path)
- *   - AuthorProfile.avatarAssetId
+ * Covers both structured references and inline body embeds:
+ *   STRUCTURED (JSON-path / FK-style, indexed query):
+ *     - ContentItem.coverAssetId
+ *     - ContentItem.seo->>'og_image_asset_id'
+ *     - ContentItem.typeData->>'pdfAssetId'
+ *     - AuthorProfile.avatarAssetId
+ *   INLINE BODY EMBEDS (Tiptap doc walk):
+ *     - image nodes in ContentItem.body referencing this asset by `assetId`
+ *       attr, or by the asset's url/storageKey appearing in the image `src`.
  *
- * NOTE (follow-up): inline body-embed scanning of the Tiptap `body` JSON (image
- * nodes that reference an assetId) is NOT covered here. That requires walking
- * the document tree per item; tracked as a documented follow-up so a delete
- * "succeeds" while the asset is still embedded in a body. Cover/SEO/PDF/avatar
- * references — the high-signal ones — are fully covered.
+ * Approach for body embeds: we pre-filter candidate items in SQL by JSON
+ * `string_contains` on the body for the asset id / url / storageKey (so we only
+ * pull bodies that plausibly mention the asset), then confirm precisely in JS by
+ * walking the doc with the pure `findEmbeddedAssetRefs` helper. This keeps us
+ * from loading every body into memory while remaining accurate. Results are
+ * merged with the structured refs and de-duplicated by content id.
  */
 export async function whereUsed(id: string): Promise<UsageRef[]> {
   const refs: UsageRef[] = [];
+  const seenContent = new Set<string>();
+
+  const asset = await prisma.mediaAsset.findUnique({
+    where: { id },
+    select: { url: true, storageKey: true },
+  });
+  const assetUrl = asset?.url ?? "";
+  const assetKey = asset?.storageKey ?? "";
 
   // Content references: cover image OR SEO og:image OR type-specific PDF.
   const content = await prisma.contentItem.findMany({
@@ -221,7 +241,31 @@ export async function whereUsed(id: string): Promise<UsageRef[]> {
     select: { id: true, title: true },
   });
   for (const c of content) {
+    if (seenContent.has(c.id)) continue;
+    seenContent.add(c.id);
     refs.push({ type: "content", id: c.id, title: c.title });
+  }
+
+  // Inline body embeds. Pre-filter candidate bodies in SQL with a JSON
+  // string_contains on the asset id/url/storageKey, then confirm in JS.
+  const bodyOr: Prisma.ContentItemWhereInput[] = [
+    { body: { string_contains: id } },
+  ];
+  if (assetUrl) bodyOr.push({ body: { string_contains: assetUrl } });
+  if (assetKey) bodyOr.push({ body: { string_contains: assetKey } });
+
+  const candidates = await prisma.contentItem.findMany({
+    where: { deletedAt: null, OR: bodyOr },
+    select: { id: true, title: true, body: true },
+  });
+  for (const c of candidates) {
+    if (seenContent.has(c.id)) continue;
+    if (
+      findEmbeddedAssetRefs(c.body, { id, url: assetUrl, storageKey: assetKey })
+    ) {
+      seenContent.add(c.id);
+      refs.push({ type: "content", id: c.id, title: c.title });
+    }
   }
 
   // Author avatar references.

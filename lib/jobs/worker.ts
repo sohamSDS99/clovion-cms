@@ -4,7 +4,9 @@
  * Run directly with `pnpm worker` (tsx lib/jobs/worker.ts).
  *
  * On each job:
- *  - POLL_JOB_NAME ("poll-due"): scan the DB for all due jobs and process them.
+ *  - POLL_JOB_NAME ("poll-due"): scan the DB for all due jobs and process them,
+ *    then run the webinar auto-transition pass (§6.2 webinar delta) on the same
+ *    tick so it shares the existing repeatable poll cadence (no new scheduler).
  *  - DIRECT_JOB_NAME ("publish-one"): process a single named job immediately.
  *
  * The worker never throws out of a processor; per-job failures are persisted to
@@ -22,6 +24,7 @@ import {
   closeQueue,
 } from "./queue";
 import { processDueJobs, processJob } from "./process";
+import { processWebinarFlip } from "./webinar";
 
 /** Processor invoked by BullMQ for each queued job. */
 async function handle(job: Job): Promise<void> {
@@ -42,6 +45,14 @@ async function handle(job: Job): Promise<void> {
       return acc;
     }, {});
     console.log(`[scheduled-publish] poll processed ${outcomes.length}:`, summary);
+  }
+
+  // Webinar auto-transition (§6.2): runs on the same tick. Self-contained +
+  // never throws, so it cannot disrupt the scheduled-publish loop.
+  const flips = await processWebinarFlip();
+  const flipped = flips.filter((f) => f.flipped).length;
+  if (flipped > 0) {
+    console.log(`[webinar-auto] flipped ${flipped} webinar(s) to recorded`);
   }
 }
 

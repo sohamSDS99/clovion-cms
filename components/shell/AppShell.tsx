@@ -37,6 +37,12 @@ const NAV: NavItem[] = [
     roles: ["ADMIN"],
   },
   {
+    href: "/analytics",
+    label: "Analytics",
+    icon: <IconChart />,
+    roles: ["ADMIN", "EDITOR"],
+  },
+  {
     href: "/audit",
     label: "Audit log",
     icon: <IconList />,
@@ -194,6 +200,9 @@ function IconBook() {
 }
 function IconGear() {
   return <Svg><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1l2.1-2.1M17 7l2.1-2.1" /></Svg>;
+}
+function IconChart() {
+  return <Svg><path d="M3 3v18h18" /><path d="M7 15v3M12 10v8M17 6v12" /></Svg>;
 }
 function IconList() {
   return <Svg><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></Svg>;
