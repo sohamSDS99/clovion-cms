@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev -p 3007",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
+    "release": "prisma migrate deploy",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
