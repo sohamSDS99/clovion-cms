@@ -401,7 +401,7 @@ export async function transitionContent(
   }
 
   const isOwner = item.createdById === user.id;
-  const policy = getOrgPolicy();
+  const policy = await getOrgPolicy();
 
   // 1+2. Combined state + role gate.
   const verdict = authorizeTransition({

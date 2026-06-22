@@ -42,8 +42,10 @@
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.34.5",
     "ioredis": "5.10.1",
+    "mammoth": "^1.12.0",
     "next": "^15.1.4",
     "next-auth": "5.0.0-beta.25",
+    "pdf-parse": "^2.4.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "^0.33.5",
@@ -52,6 +54,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19.0.5",
     "@types/react-dom": "^19.0.3",
     "autoprefixer": "^10.4.20",

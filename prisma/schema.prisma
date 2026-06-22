@@ -475,3 +475,21 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
+
+// Org-level workflow policy, runtime-editable by an Admin (Phase 3).
+// Singleton row. Replaces the env-var defaults previously read in policy.ts.
+//   - selfPublish: Authors may self-publish/schedule their own content.
+//   - newsFastPublish: NEWS gets an Author self-publish lane.
+//   - webinarAutoRecorded: after a webinar's end_at, auto-flip is_live ->
+//     is_recorded when a recording_url is present (FR §6.2 webinar delta).
+model OrgPolicy {
+  id                  String   @id @default(uuid()) @db.Uuid
+  selfPublish         Boolean  @default(false)
+  newsFastPublish     Boolean  @default(true)
+  webinarAutoRecorded Boolean  @default(false)
+  updatedById         String?  @db.Uuid
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("org_policy")
+}
