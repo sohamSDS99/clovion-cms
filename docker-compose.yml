@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: clovion-cms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clovion
+      POSTGRES_PASSWORD: clovion
+      POSTGRES_DB: clovion_cms
+    ports:
+      # Host port 5433 to avoid clashing with other local Postgres instances.
+      - "5433:5432"
+    volumes:
+      - clovion_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clovion -d clovion_cms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: clovion-cms-redis
+    restart: unless-stopped
+    ports:
+      # Host port 6380 to avoid clashing with other local Redis instances.
+      - "6380:6379"
+    volumes:
+      - clovion_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3-compatible object storage for local media/PDF dev.
+  minio:
+    image: minio/minio:latest
+    container_name: clovion-cms-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: clovionminio
+      MINIO_ROOT_PASSWORD: clovionminio
+    ports:
+      # Host ports 9100/9101 to avoid clashing with other local MinIO instances.
+      - "9100:9000"
+      - "9101:9001"
+    volumes:
+      - clovion_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  clovion_pg_data:
+  clovion_redis_data:
+  clovion_minio_data:

@@ -1,0 +1,477 @@
+// Clovion CMS — Prisma schema
+// Postgres 16 + pgvector. Prisma 6.x.
+//
+// Modeling notes:
+// - Generic creator/updater/owner columns (createdById, updatedById, uploadedById,
+//   requestedById, updatedBy) are kept as plain String? @db.Uuid foreign-key-less
+//   columns (no @relation) to avoid dozens of back-relation arrays on User. They are
+//   FKs by convention (to User) but not enforced at the Prisma relation level.
+// - Real, named relations are only declared where the app needs to traverse them.
+// - Soft delete (deletedAt) is only on ContentItem and MediaAsset.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EDITOR
+  AUTHOR
+  CONTRIBUTOR
+  VIEWER
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum ContentType {
+  BLOG
+  WEBINAR
+  NEWS
+  RESOURCE
+  FAQ
+}
+
+enum ContentStatus {
+  DRAFT
+  IN_REVIEW
+  SCHEDULED
+  PUBLISHED
+  UNPUBLISHED
+  ARCHIVED
+}
+
+enum RevisionSource {
+  MANUAL
+  AI_GENERATION
+  AUTOSAVE
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  PDF
+  OTHER
+}
+
+enum KbSourceType {
+  DOC
+  URL
+  PASTED_TEXT
+  PDF
+}
+
+enum KbStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum AiMode {
+  FULL_DRAFT
+  SECTION
+  REWRITE
+  OUTLINE
+}
+
+enum AiJobStatus {
+  QUEUED
+  STREAMING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ScheduledAction {
+  PUBLISH
+  UNPUBLISH
+}
+
+enum ScheduledStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CORE / IDENTITY
+// ──────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String     @unique
+  name            String?
+  role            Role       @default(CONTRIBUTOR)
+  status          UserStatus @default(INVITED)
+  passwordHash    String?
+  authorProfileId String?    @unique @db.Uuid
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  authorProfile  AuthorProfile? @relation("UserAuthorProfile", fields: [authorProfileId], references: [id])
+  createdContent ContentItem[]  @relation("ContentCreatedBy")
+  auditLogs      AuditLog[]     @relation("AuditLogActor")
+
+  // Auth.js
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model AuthorProfile {
+  id            String   @id @default(uuid()) @db.Uuid
+  displayName   String
+  slug          String   @unique
+  bio           String?  @db.Text
+  avatarAssetId String?  @db.Uuid
+  socialLinks   Json     @default("{}")
+  isPublic      Boolean  @default(false)
+  isGhost       Boolean  @default(false) // guest byline, no login (PRD Q1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdById   String?  @db.Uuid
+  updatedById   String?  @db.Uuid
+
+  // Relations
+  user         User?         @relation("UserAuthorProfile")
+  contentItems ContentItem[] @relation("ContentByline")
+
+  @@map("author_profiles")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CONTENT
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ContentItem {
+  id                String        @id @default(uuid()) @db.Uuid
+  type              ContentType
+  title             String
+  slug              String
+  body              Json // Tiptap doc
+  bodyHtml          String?       @db.Text
+  excerpt           String?       @db.Text
+  coverAssetId      String?       @db.Uuid
+  status            ContentStatus @default(DRAFT)
+  scheduledAt       DateTime?
+  publishedAt       DateTime?
+  authorProfileId   String        @db.Uuid
+  seo               Json          @default("{}")
+  schemaMarkup      Json          @default("{}")
+  categoryId        String?       @db.Uuid
+  typeData          Json          @default("{}")
+  currentRevisionId String?       @db.Uuid
+  deletedAt         DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  createdById       String?       @db.Uuid
+  updatedById       String?       @db.Uuid
+
+  // Relations
+  authorProfile   AuthorProfile     @relation("ContentByline", fields: [authorProfileId], references: [id])
+  category        Category?         @relation("ContentCategory", fields: [categoryId], references: [id])
+  coverAsset      MediaAsset?       @relation("ContentCoverAsset", fields: [coverAssetId], references: [id])
+  createdBy       User?             @relation("ContentCreatedBy", fields: [createdById], references: [id])
+  revisions       ContentRevision[] @relation("ContentRevisions")
+  currentRevision ContentRevision?  @relation("ContentCurrentRevision", fields: [currentRevisionId], references: [id])
+  tags            Tag[]             @relation("ContentTags")
+  scheduledJobs   ScheduledJob[]    @relation("ContentScheduledJobs")
+  aiJobs          AIGenerationJob[] @relation("ContentAiJobs")
+
+  @@unique([type, slug])
+  @@index([type, status])
+  @@index([status, scheduledAt])
+  @@index([publishedAt])
+  @@map("content_items")
+}
+
+model ContentRevision {
+  id           String         @id @default(uuid()) @db.Uuid
+  contentId    String         @db.Uuid
+  body         Json
+  seo          Json
+  typeData     Json
+  revisionNote String?
+  source       RevisionSource
+  createdAt    DateTime       @default(now())
+  createdById  String?        @db.Uuid
+
+  // Relations
+  content    ContentItem   @relation("ContentRevisions", fields: [contentId], references: [id])
+  currentFor ContentItem[] @relation("ContentCurrentRevision")
+
+  @@index([contentId, createdAt])
+  @@map("content_revisions")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// MEDIA
+// ──────────────────────────────────────────────────────────────────────────────
+
+model MediaAsset {
+  id           String    @id @default(uuid()) @db.Uuid
+  kind         MediaKind
+  storageKey   String
+  url          String
+  filename     String
+  mimeType     String
+  sizeBytes    BigInt
+  width        Int?
+  height       Int?
+  durationS    Int?
+  altText      String?
+  caption      String?   @db.Text
+  variants     Json      @default("{}")
+  uploadedById String?   @db.Uuid
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdById  String?   @db.Uuid
+  updatedById  String?   @db.Uuid
+
+  // Relations
+  coverFor ContentItem[] @relation("ContentCoverAsset")
+
+  @@index([kind])
+  @@map("media_assets")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// EDITORIAL / AI CONFIG
+// ──────────────────────────────────────────────────────────────────────────────
+
+model WritingSOP {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  body        String        @db.Text
+  appliesTo   ContentType[]
+  isActive    Boolean       @default(false)
+  version     Int           @default(1)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdById String?       @db.Uuid
+  updatedById String?       @db.Uuid
+
+  @@map("writing_sops")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// KNOWLEDGE BASE (RAG)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model KnowledgeBaseItem {
+  id          String       @id @default(uuid()) @db.Uuid
+  title       String
+  sourceType  KbSourceType
+  rawContent  String       @db.Text
+  tags        String[]
+  status      KbStatus     @default(PROCESSING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdById String?      @db.Uuid
+
+  // Relations
+  chunks KnowledgeBaseChunk[] @relation("KbItemChunks")
+
+  @@map("knowledge_base_items")
+}
+
+model KnowledgeBaseChunk {
+  id         String                       @id @default(uuid()) @db.Uuid
+  kbItemId   String                       @db.Uuid
+  chunkText  String                       @db.Text
+  // pgvector column. Prisma has no native vector type, so it is modeled as
+  // Unsupported. Similarity retrieval is done via raw SQL (e.g. `embedding <=> $1`).
+  // A vector index (ivfflat or hnsw) is added via migration SQL, for example:
+  //   CREATE INDEX ON knowledge_base_chunks USING hnsw (embedding vector_cosine_ops);
+  embedding  Unsupported("vector(1536)")?
+  tokenCount Int
+  createdAt  DateTime                     @default(now())
+
+  // Relations
+  kbItem KnowledgeBaseItem @relation("KbItemChunks", fields: [kbItemId], references: [id], onDelete: Cascade)
+
+  @@index([kbItemId])
+  @@map("knowledge_base_chunks")
+}
+
+model AIProviderConfig {
+  id                        String   @id @default(uuid()) @db.Uuid
+  openrouterApiKeyEncrypted String? // encrypted at rest
+  defaultModel              String?
+  embeddingModel            String?
+  maxTokens                 Int      @default(4000)
+  temperature               Float    @default(0.7)
+  monthlyBudgetUsd          Decimal? @db.Decimal(10, 2)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  updatedById               String?  @db.Uuid
+
+  @@map("ai_provider_configs")
+}
+
+model AIGenerationJob {
+  id               String      @id @default(uuid()) @db.Uuid
+  contentId        String?     @db.Uuid
+  requestedById    String?     @db.Uuid
+  mode             AiMode
+  promptAssembly   Json        @default("{}")
+  model            String?
+  status           AiJobStatus @default(QUEUED)
+  outputTiptap     Json?
+  tokensPrompt     Int?
+  tokensCompletion Int?
+  costUsd          Decimal?    @db.Decimal(10, 4)
+  lowGrounding     Boolean     @default(false)
+  error            Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  content ContentItem? @relation("ContentAiJobs", fields: [contentId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("ai_generation_jobs")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SCHEDULING
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ScheduledJob {
+  id        String          @id @default(uuid()) @db.Uuid
+  contentId String          @db.Uuid
+  action    ScheduledAction
+  runAt     DateTime
+  status    ScheduledStatus @default(PENDING)
+  attempts  Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  // Relations
+  content ContentItem @relation("ContentScheduledJobs", fields: [contentId], references: [id])
+
+  @@index([status, runAt])
+  @@map("scheduled_jobs")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AUDIT (append-only)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  entityType String
+  entityId   String   @db.Uuid
+  action     String
+  diff       Json?
+  at         DateTime @default(now())
+
+  // Relations
+  actor User? @relation("AuditLogActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId, at])
+  @@index([at])
+  @@map("audit_logs")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// TAXONOMY
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+
+  // Relations
+  contentItems ContentItem[] @relation("ContentCategory")
+
+  @@map("categories")
+}
+
+model Tag {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+
+  // Relations
+  contentItems ContentItem[] @relation("ContentTags")
+
+  @@map("tags")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AUTH.JS (NextAuth v5 + @auth/prisma-adapter)
+// ──────────────────────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
