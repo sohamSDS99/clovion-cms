@@ -7,7 +7,7 @@
  * error shapes and status codes stay consistent across the API.
  */
 import { NextResponse } from "next/server";
-import { ZodError, type ZodSchema } from "zod";
+import { ZodError, type ZodTypeAny, type z } from "zod";
 import { AuthzError } from "@/lib/auth/rbac";
 
 export { AuthzError };
@@ -123,8 +123,15 @@ export function withRoute<Args extends unknown[]>(
   };
 }
 
-/** Parse + validate a JSON request body; throws ValidationError on failure. */
-export async function parseBody<T>(req: Request, schema: ZodSchema<T>): Promise<T> {
+/**
+ * Parse + validate a JSON request body; throws ValidationError on failure.
+ * Generic over the schema so transforming schemas (input ≠ output) are
+ * supported — returns the schema's OUTPUT type.
+ */
+export async function parseBody<S extends ZodTypeAny>(
+  req: Request,
+  schema: S
+): Promise<z.infer<S>> {
   let raw: unknown;
   try {
     raw = await req.json();
@@ -139,7 +146,10 @@ export async function parseBody<T>(req: Request, schema: ZodSchema<T>): Promise<
 }
 
 /** Parse + validate URLSearchParams; throws ValidationError on failure. */
-export function parseQuery<T>(searchParams: URLSearchParams, schema: ZodSchema<T>): T {
+export function parseQuery<S extends ZodTypeAny>(
+  searchParams: URLSearchParams,
+  schema: S
+): z.infer<S> {
   const obj = Object.fromEntries(searchParams.entries());
   const result = schema.safeParse(obj);
   if (!result.success) {
