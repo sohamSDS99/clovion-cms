@@ -8,6 +8,7 @@
  */
 import { NextResponse } from "next/server";
 import { ZodError, type ZodTypeAny, type z } from "zod";
+import { Prisma } from "@prisma/client";
 import { AuthzError } from "@/lib/auth/rbac";
 
 export { AuthzError };
@@ -101,6 +102,19 @@ export function errorResponse(error: unknown): NextResponse {
       },
       error.status
     );
+  }
+  // Map common Prisma errors to clean statuses instead of leaking a 500.
+  // Notably P2023 catches malformed UUID path params (e.g. /api/x/undefined).
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    const map: Record<string, { status: number; message: string; code: string }> = {
+      P2023: { status: 400, message: "Malformed identifier.", code: "bad_request" },
+      P2025: { status: 404, message: "Not found.", code: "not_found" },
+      P2002: { status: 409, message: "A record with these values already exists.", code: "conflict" },
+    };
+    const mapped = map[error.code];
+    if (mapped) {
+      return json({ error: { message: mapped.message, code: mapped.code } }, mapped.status);
+    }
   }
   // Unknown / unexpected — don't leak internals.
   console.error("[api] unhandled error:", error);

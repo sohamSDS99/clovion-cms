@@ -63,6 +63,10 @@ export const authConfig = {
      */
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
+      // API routes authorize themselves in-handler (requireUser /
+      // requireCapability) and must return JSON 401/403 — never an HTML login
+      // redirect. Let them through the edge gate. (Headless CMS: FR-USER-03.)
+      if (pathname.startsWith("/api/")) return true;
       if (isPublicPath(pathname)) return true;
       return !!auth?.user;
     },
