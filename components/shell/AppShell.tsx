@@ -83,6 +83,7 @@ function AppShellInner({
   const activeType = searchParams.get("type");
   const activeStatus = searchParams.get("status");
   const isReadOnly = user.role === "VIEWER";
+  const onContent = pathname === "/content" || pathname === "/content/new";
 
   // Build the four sub-links for a content-type group, marking the exact one
   // that matches pathname + ?type + ?status.
@@ -170,18 +171,25 @@ function AppShellInner({
             Dashboard
           </Link>
 
-          {/* CONTENT */}
-          <SectionLabel>Content</SectionLabel>
-          {CONTENT_TYPES.map((type) => (
-            <NavGroup
-              key={type}
-              label={contentTypeLabel(type)}
-              icon={contentTypeIcon(type)}
-              items={contentSubItems(type)}
-              defaultOpen={contentGroupOpen(type)}
-              onNavigate={closeMobile}
-            />
-          ))}
+          {/* CONTENT — single collapsible parent holding the five type groups */}
+          <NavGroup
+            label="Content"
+            icon={<IconLayers />}
+            defaultOpen={onContent}
+            containsActive={onContent}
+            onNavigate={closeMobile}
+          >
+            {CONTENT_TYPES.map((type) => (
+              <NavGroup
+                key={type}
+                label={contentTypeLabel(type)}
+                icon={contentTypeIcon(type)}
+                items={contentSubItems(type)}
+                defaultOpen={contentGroupOpen(type)}
+                onNavigate={closeMobile}
+              />
+            ))}
+          </NavGroup>
 
           {/* WORKSPACE */}
           <SectionLabel>Workspace</SectionLabel>
@@ -307,6 +315,9 @@ function Svg(props: React.SVGProps<SVGSVGElement>) {
 }
 function IconHome() {
   return <Svg><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></Svg>;
+}
+function IconLayers() {
+  return <Svg><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 13 9 5 9-5" /></Svg>;
 }
 function IconDoc() {
   return <Svg><path d="M6 2h8l4 4v16H6z" /><path d="M14 2v4h4" /><path d="M9 13h6M9 17h6" /></Svg>;

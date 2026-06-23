@@ -20,17 +20,24 @@ export function NavGroup({
   label,
   icon,
   items,
+  children,
   defaultOpen,
   onNavigate,
+  containsActive,
 }: {
   label: string;
   icon: React.ReactNode;
-  items: NavSubItem[];
+  /** Leaf sub-links. Omit when nesting groups via `children`. */
+  items?: NavSubItem[];
+  /** Nested content (e.g. child NavGroups) rendered in the expandable body. */
+  children?: React.ReactNode;
   defaultOpen: boolean;
   onNavigate: () => void;
+  /** Active hint when using `children` (parent can't infer from `items`). */
+  containsActive?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const hasActiveChild = items.some((i) => i.active);
+  const hasActiveChild = containsActive ?? (items?.some((i) => i.active) ?? false);
 
   return (
     <div>
@@ -57,23 +64,24 @@ export function NavGroup({
 
       {open ? (
         <div className="mt-0.5 space-y-0.5 pl-4">
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={item.active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-2 rounded-sm py-1.5 pl-4 pr-3 text-sm transition-colors",
-                "border-l border-line",
-                item.active
-                  ? "border-accent bg-accent-soft font-medium text-accent-ink"
-                  : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {children ??
+            items?.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                aria-current={item.active ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-2 rounded-sm py-1.5 pl-4 pr-3 text-sm transition-colors",
+                  "border-l border-line",
+                  item.active
+                    ? "border-accent bg-accent-soft font-medium text-accent-ink"
+                    : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
         </div>
       ) : null}
     </div>
