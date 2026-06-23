@@ -31,6 +31,12 @@ const NAV: NavItem[] = [
     roles: ["ADMIN", "EDITOR"],
   },
   {
+    href: "/knowledge-base",
+    label: "Knowledge Base",
+    icon: <IconBook />,
+    roles: ["ADMIN", "EDITOR"],
+  },
+  {
     href: "/lead-forms",
     label: "Lead Forms",
     icon: <IconForm />,
