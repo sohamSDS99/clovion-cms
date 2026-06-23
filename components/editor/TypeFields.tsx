@@ -57,7 +57,7 @@ function labelFor(type: ContentType): string {
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
 /* ── WEBINAR ─────────────────────────────────────────────────────────────── */
-function WebinarFields({
+export function WebinarFields({
   typeData,
   onChange,
   fieldErrors,
@@ -123,7 +123,7 @@ function WebinarFields({
 }
 
 /* ── RESOURCE ────────────────────────────────────────────────────────────── */
-function ResourceFields({
+export function ResourceFields({
   typeData,
   onChange,
   fieldErrors,
@@ -203,7 +203,7 @@ function ResourceFields({
 }
 
 /* ── FAQ ─────────────────────────────────────────────────────────────────── */
-function FaqFields({
+export function FaqFields({
   typeData,
   onChange,
   fieldErrors,
@@ -264,7 +264,7 @@ function FaqFields({
 }
 
 /* ── NEWS ────────────────────────────────────────────────────────────────── */
-function NewsFields({
+export function NewsFields({
   typeData,
   onChange,
 }: {

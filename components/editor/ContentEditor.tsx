@@ -4,18 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Editor } from "@tiptap/react";
-import { TiptapEditor } from "./TiptapEditor";
-import { SeoPanel } from "./SeoPanel";
-import { SchemaPanel } from "./SchemaPanel";
-import { CoverImage } from "./CoverImage";
-import { TypeFields } from "./TypeFields";
+import { ContentLayout } from "./layouts/ContentLayout";
+import type { Draft } from "./layouts/types";
 import { ActionBar } from "./ActionBar";
 import { RevisionDrawer } from "./RevisionDrawer";
 import { AiWritePanel, type AiInsertPayload } from "./AiWritePanel";
 import { AiAssistedBadge } from "./AiAssistedBadge";
 import { applyAiInsert } from "./applyAiInsert";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Field";
 import { Loading, InlineError } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, api, errorMessage } from "@/lib/ui/client";
@@ -26,24 +22,10 @@ import type {
   FieldError,
   PublishGateDetails,
   Role,
-  SeoData,
-  TiptapDoc,
   TransitionAction,
 } from "@/lib/ui/types";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
-
-/** Editable slice of the content item kept in local state. */
-interface Draft {
-  title: string;
-  slug: string;
-  slugTouched: boolean;
-  excerpt: string;
-  body: TiptapDoc;
-  seo: SeoData;
-  typeData: Record<string, unknown>;
-  coverAssetId: string | null;
-}
 
 const AUTOSAVE_MS = 4000; // <= 10s idle requirement (FR-CONTENT-03).
 
@@ -352,88 +334,17 @@ export function ContentEditor({
         ) : null}
       </div>
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Main column */}
-        <div className="space-y-4">
-          <input
-            value={draft.title}
-            onChange={(e) => update({ title: e.target.value })}
-            placeholder="Untitled"
-            aria-label="Title"
-            className="w-full bg-transparent font-display text-3xl font-semibold tracking-tight text-ink placeholder:text-ink-faint focus:outline-none"
-          />
-          {gateErrors.title ? (
-            <p className="text-xs text-danger">{gateErrors.title}</p>
-          ) : null}
-
-          <div className="flex items-center gap-1 text-sm text-ink-mute">
-            <span className="text-ink-faint">/{item.type.toLowerCase()}/</span>
-            <input
-              value={draft.slug}
-              onChange={(e) =>
-                update({ slug: slugFromTitle(e.target.value), slugTouched: true })
-              }
-              placeholder="slug"
-              aria-label="Slug"
-              className="flex-1 bg-transparent text-accent focus:outline-none"
-            />
-          </div>
-          {gateErrors.slug ? (
-            <p className="text-xs text-danger">{gateErrors.slug}</p>
-          ) : null}
-
-          <Input
-            label="Excerpt"
-            value={draft.excerpt}
-            onChange={(e) => update({ excerpt: e.target.value })}
-            placeholder="A short summary shown in listings."
-          />
-
-          <TiptapEditor
-            initialDoc={draft.body}
-            onChange={(body) => update({ body })}
-            onReady={handleEditorReady}
-          />
-        </div>
-
-        {/* Sidebar */}
-        <aside className="space-y-4">
-          <CoverImage
-            coverAssetId={draft.coverAssetId}
-            onChange={(id) => update({ coverAssetId: id })}
-            error={gateErrors.coverAssetId}
-          />
-          <TypeFields
-            type={item.type}
-            typeData={draft.typeData}
-            onChange={(patch) =>
-              update({ typeData: { ...draft.typeData, ...patch } })
-            }
-            fieldErrors={gateErrors}
-          />
-          <SeoPanel
-            seo={draft.seo}
-            slug={draft.slug}
-            type={item.type}
-            title={draft.title}
-            onChange={(patch) => update({ seo: { ...draft.seo, ...patch } })}
-            fieldErrors={gateErrors}
-          />
-          <SchemaPanel
-            contentId={contentId}
-            initialSchema={schemaMarkupOf(item)}
-          />
-          <div className="px-1">
-            <button
-              onClick={handleDelete}
-              className="text-xs text-ink-faint hover:text-danger hover:underline"
-            >
-              Delete this content
-            </button>
-          </div>
-        </aside>
-      </div>
+      {/* Per-type layout: arranges title/body/fields by what each type needs. */}
+      <ContentLayout
+        item={item}
+        draft={draft}
+        update={update}
+        gateErrors={gateErrors}
+        contentId={contentId}
+        initialSchema={schemaMarkupOf(item)}
+        onEditorReady={handleEditorReady}
+        onDelete={handleDelete}
+      />
 
       <AiWritePanel
         open={aiOpen}
