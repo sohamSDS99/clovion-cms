@@ -6,6 +6,7 @@ import { PageBody, PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Loading, InlineError } from "@/components/ui/Feedback";
+import { AiAnalyticsSection } from "@/components/analytics/AiAnalyticsSection";
 import { api, errorMessage } from "@/lib/ui/client";
 import {
   CONTENT_STATUSES,
@@ -24,6 +25,11 @@ interface ListResponse {
  * Dashboard (P0): status counts + recent items. Counts are derived by fetching
  * a generous recent window and tallying client-side (the list API has no count
  * endpoint). The recent list links straight into the editor.
+ *
+ * Analytics merge: the former standalone /analytics page now lives here as the
+ * <AiAnalyticsSection/> block rendered below the content overview. That block
+ * owns its own fetch (/api/analytics/ai) and self-hides for roles without the
+ * analytics capability (403), so the content dashboard above always renders.
  */
 export function Dashboard() {
   const [items, setItems] = useState<ContentItem[] | null>(null);
@@ -55,7 +61,7 @@ export function Dashboard() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Your content at a glance."
+        description="Your content and AI usage at a glance."
       />
       <PageBody className="space-y-6">
         {error ? <InlineError message={error} /> : null}
@@ -145,6 +151,12 @@ export function Dashboard() {
                 </ul>
               )}
             </Card>
+
+            {/* AI analytics (merged from the former /analytics page). Self-hides
+                for roles without the analytics capability. */}
+            <div className="border-t border-line pt-6">
+              <AiAnalyticsSection />
+            </div>
           </>
         )}
       </PageBody>

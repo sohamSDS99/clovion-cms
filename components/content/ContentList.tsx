@@ -47,6 +47,15 @@ export function ContentList() {
 
   const reviewMode = statusParam === "IN_REVIEW";
 
+  // Heading reflects the active filter coming from the nav, e.g. "Blog · Drafts".
+  const typeLabel = typeParam ? contentTypeLabel(typeParam) : "";
+  const statusLabel = statusParam ? statusBadge(statusParam).label : "";
+  const heading = reviewMode
+    ? "Review queue"
+    : typeLabel || statusLabel
+      ? [typeLabel, statusLabel].filter(Boolean).join(" · ")
+      : "All content";
+
   // Keep the search box in sync if navigated to with a ?q.
   useEffect(() => setSearch(qParam), [qParam]);
 
@@ -117,11 +126,13 @@ export function ContentList() {
   return (
     <>
       <PageHeader
-        title={reviewMode ? "Review queue" : "Content"}
+        title={heading}
         description={
           reviewMode
             ? "Items submitted and awaiting an editorial decision."
-            : "All content across every type and lifecycle stage."
+            : typeLabel || statusLabel
+              ? `Filtered view${typeLabel ? ` of ${typeLabel.toLowerCase()} content` : ""}${statusLabel ? `${typeLabel ? "," : ""} ${statusLabel.toLowerCase()} items` : ""}.`
+              : "All content across every type and lifecycle stage."
         }
         actions={<NewContentButton />}
       />

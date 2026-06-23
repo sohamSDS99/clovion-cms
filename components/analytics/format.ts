@@ -1,5 +1,5 @@
 /**
- * Small presentation helpers local to the analytics dashboard. Kept React/DOM
+ * Small presentation helpers local to the analytics components. Kept React/DOM
  * free (mirrors lib/ui/format.ts conventions) and tiny enough not to warrant a
  * shared module.
  */
