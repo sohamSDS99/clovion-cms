@@ -14,6 +14,7 @@
  * Graceful shutdown on SIGTERM/SIGINT drains in-flight work and closes Redis.
  */
 
+import { createServer } from "node:http";
 import { Worker, type Job } from "bullmq";
 import { getConnection, closeConnection } from "./connection";
 import {
@@ -75,6 +76,23 @@ export function startWorker(): Worker {
   return worker;
 }
 
+/**
+ * Minimal HTTP health server so the platform's healthcheck (/api/health) passes
+ * for the worker process, which otherwise serves no HTTP. The web service uses
+ * the same shared railway.json healthcheck; this lets one config cover both.
+ * Listens on $PORT (set by Railway); no-op locally when PORT is unset.
+ */
+function startHealthServer(): void {
+  const port = Number(process.env.PORT ?? 0);
+  if (!port) return;
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok", role: "worker" }));
+  });
+  server.on("error", (err) => console.error(`[worker] health server error: ${err.message}`));
+  server.listen(port, () => console.log(`[worker] health server listening on :${port}`));
+}
+
 /** Wire graceful shutdown for the given worker. */
 function installShutdown(worker: Worker): void {
   let shuttingDown = false;
@@ -99,6 +117,7 @@ function installShutdown(worker: Worker): void {
 
 /** Entrypoint when run directly via `tsx lib/jobs/worker.ts`. */
 async function main(): Promise<void> {
+  startHealthServer(); // satisfy the platform healthcheck (worker has no HTTP otherwise)
   await ensureRepeatable(); // self-register the repeatable poll on boot
   const worker = startWorker();
   installShutdown(worker);
