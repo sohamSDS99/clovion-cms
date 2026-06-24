@@ -7,6 +7,8 @@ import { PageBody, PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
 import { EmptyState, InlineError, Loading } from "@/components/ui/Feedback";
 import { NewContentButton } from "./NewContentButton";
 import { api, errorMessage } from "@/lib/ui/client";
@@ -33,6 +35,11 @@ interface ListResponse {
 export function ContentList() {
   const router = useRouter();
   const params = useSearchParams();
+  const toast = useToast();
+
+  // Soft-delete confirm flow. `pendingDelete` holds the row awaiting confirmation.
+  const [pendingDelete, setPendingDelete] = useState<ContentItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const typeParam = (params.get("type") as ContentType | null) ?? "";
   const statusParam = (params.get("status") as ContentStatus | null) ?? "";
@@ -115,6 +122,23 @@ export function ContentList() {
     }
   }
 
+  // Soft-delete the pending row: removes it from the website and the CMS
+  // (recoverable by an admin). Server enforces the delete_content capability.
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/content/${pendingDelete.id}`);
+      setItems((prev) => prev.filter((i) => i.id !== pendingDelete.id));
+      toast.success(`Deleted “${pendingDelete.title || "Untitled"}”.`);
+      setPendingDelete(null);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // Debounced search submit.
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function onSearchChange(value: string) {
@@ -186,39 +210,57 @@ export function ContentList() {
         ) : (
           <Card className="overflow-hidden">
             {/* Header row (desktop) */}
-            <div className="hidden grid-cols-[1fr_120px_120px_140px] gap-3 border-b border-line px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-ink-faint sm:grid">
+            <div className="hidden grid-cols-[1fr_120px_120px_140px_44px] gap-3 border-b border-line px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-ink-faint sm:grid">
               <span>Title</span>
               <span>Type</span>
               <span>Status</span>
               <span>Updated</span>
+              <span className="sr-only">Actions</span>
             </div>
             <ul className="divide-y divide-line">
               {items.map((item) => {
                 const meta = statusBadge(item.status);
                 return (
-                  <li key={item.id}>
+                  // Stretched-link row: the absolute Link makes the whole row
+                  // navigate to the editor; the delete button sits above it
+                  // (relative z-10) so it stays independently clickable.
+                  <li
+                    key={item.id}
+                    className="relative grid grid-cols-1 gap-1 px-5 py-3.5 transition-colors hover:bg-paper-sunken/50 sm:grid-cols-[1fr_120px_120px_140px_44px] sm:items-center sm:gap-3"
+                  >
                     <Link
                       href={`/content/${item.id}/edit`}
-                      className="grid grid-cols-1 gap-1 px-5 py-3.5 transition-colors hover:bg-paper-sunken/50 sm:grid-cols-[1fr_120px_120px_140px] sm:items-center sm:gap-3"
+                      className="absolute inset-0"
+                      aria-label={`Edit ${item.title || "Untitled"}`}
+                    />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">
+                        {item.title || "Untitled"}
+                      </span>
+                      <span className="truncate text-xs text-ink-mute">
+                        /{item.slug}
+                      </span>
+                    </span>
+                    <span className="text-sm text-ink-soft">
+                      {contentTypeLabel(item.type)}
+                    </span>
+                    <span>
+                      <Badge tone={meta.tone}>{meta.label}</Badge>
+                    </span>
+                    <span className="text-sm text-ink-mute">
+                      {relativeTime(item.updatedAt)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(item)}
+                      aria-label={`Delete ${item.title || "Untitled"}`}
+                      title="Delete"
+                      className="relative z-10 justify-self-start rounded p-1.5 text-ink-faint transition-colors hover:bg-danger-soft hover:text-danger sm:justify-self-center"
                     >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-ink">
-                          {item.title || "Untitled"}
-                        </span>
-                        <span className="truncate text-xs text-ink-mute">
-                          /{item.slug}
-                        </span>
-                      </span>
-                      <span className="text-sm text-ink-soft">
-                        {contentTypeLabel(item.type)}
-                      </span>
-                      <span>
-                        <Badge tone={meta.tone}>{meta.label}</Badge>
-                      </span>
-                      <span className="text-sm text-ink-mute">
-                        {relativeTime(item.updatedAt)}
-                      </span>
-                    </Link>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 5v6m4-6v6" />
+                      </svg>
+                    </button>
                   </li>
                 );
               })}
@@ -234,6 +276,34 @@ export function ContentList() {
           </div>
         ) : null}
       </PageBody>
+
+      <Modal
+        open={pendingDelete !== null}
+        onClose={() => !deleting && setPendingDelete(null)}
+        title="Delete content?"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-ink-soft">
+            This removes{" "}
+            <span className="font-medium text-ink">
+              “{pendingDelete?.title || "Untitled"}”
+            </span>{" "}
+            from the website and the CMS. It can be restored later by an admin.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setPendingDelete(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} loading={deleting}>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

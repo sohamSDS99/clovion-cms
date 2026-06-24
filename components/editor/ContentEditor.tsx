@@ -245,7 +245,12 @@ export function ContentEditor({
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this content? This cannot be undone from here.")) return;
+    if (
+      !confirm(
+        "Delete this content? It will be removed from the website and the CMS. An admin can restore it later."
+      )
+    )
+      return;
     try {
       await api.delete(`/api/content/${contentId}`);
       toast.success("Deleted.");

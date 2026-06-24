@@ -349,7 +349,7 @@ export async function softDeleteContent(
     );
   }
 
-  await prisma.contentItem.update({
+  const updated = await prisma.contentItem.update({
     where: { id: existing.id },
     data: { deletedAt: new Date(), updatedById: user.id },
   });
@@ -360,6 +360,13 @@ export async function softDeleteContent(
     entityId: existing.id,
     action: "deleted",
   });
+
+  // If the item was live, tell the public site to purge its cache so the page
+  // 404s promptly instead of lingering in ISR. "unpublish" is the right signal
+  // here — the path is no longer available. Best-effort; never throws.
+  if (existing.status === "PUBLISHED") {
+    await firePublishWebhook(updated, "unpublish");
+  }
 }
 
 // ── Lifecycle transition (FR-CONTENT-08, FR-CONTENT-09) ───────────────────────
