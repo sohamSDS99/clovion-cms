@@ -133,8 +133,10 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
               />
             ) : null}
           </div>
-          <Divider />
+        </div>
 
+        {/* ── Row 2 ───────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-0.5">
           <Btn label="Align left" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
             <IconAlignLeft />
           </Btn>
@@ -147,10 +149,8 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
           <Btn label="Justify" active={editor.isActive({ textAlign: "justify" })} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>
             <IconAlignJustify />
           </Btn>
-        </div>
+          <Divider />
 
-        {/* ── Row 2 ───────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-0.5">
           <Btn label="Bullet list" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}>
             <IconBullet />
           </Btn>
@@ -324,7 +324,7 @@ function FontFamilySelect({ editor }: { editor: Editor }) {
         else editor.chain().focus().setMark("textStyle", { fontFamily: null }).removeEmptyTextStyle().run();
       }}
       style={current ? { fontFamily: current } : undefined}
-      className="h-8 w-[7.5rem] cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
+      className="h-8 w-24 cursor-pointer truncate rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
     >
       {FONT_FAMILIES.map((f) => (
         <option key={f.value || "default"} value={f.value} style={f.value ? { fontFamily: f.value } : undefined}>

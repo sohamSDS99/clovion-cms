@@ -80,7 +80,7 @@ export const FontSize = Extension.create({
  * choice degrades gracefully when a face isn't installed.
  */
 export const FONT_FAMILIES: { label: string; value: string }[] = [
-  { label: "Saans (default)", value: "" },
+  { label: "Saans", value: "" },
   { label: "Inter", value: "Inter, sans-serif" },
   { label: "Roboto", value: "Roboto, sans-serif" },
   { label: "Open Sans", value: "'Open Sans', sans-serif" },
