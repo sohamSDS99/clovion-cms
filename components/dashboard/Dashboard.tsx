@@ -45,7 +45,7 @@ export function Dashboard() {
   useEffect(() => {
     const ac = new AbortController();
     api
-      .get<ListResponse>("/api/content", { limit: 200 }, ac.signal)
+      .get<ListResponse>("/api/content", { limit: 100 }, ac.signal)
       .then((r) => setItems(r.items))
       .catch((e) => {
         if (!ac.signal.aborted) setError(errorMessage(e));
