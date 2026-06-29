@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { MediaPicker } from "@/components/media/MediaPicker";
 import { toEmbedUrl, insertEmbed } from "@/lib/editor/config";
+import { FONT_FAMILIES, FONT_SIZES } from "@/lib/editor/fontExtensions";
 
 /**
  * Tiptap toolbar (FR-EDITOR-01/02/03). Two rows of controls reflecting the
@@ -67,6 +68,10 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
           <Divider />
 
           <BlockSelect editor={editor} />
+          <Divider />
+
+          <FontFamilySelect editor={editor} />
+          <FontSizeSelect editor={editor} />
           <Divider />
 
           <Btn label="Heading 1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
@@ -301,6 +306,55 @@ function BlockSelect({ editor }: { editor: Editor }) {
       <option value="1">Heading 1</option>
       <option value="2">Heading 2</option>
       <option value="3">Heading 3</option>
+    </select>
+  );
+}
+
+/* ── Font family dropdown ───────────────────────────────────────────────── */
+function FontFamilySelect({ editor }: { editor: Editor }) {
+  const current = (editor.getAttributes("textStyle").fontFamily as string) || "";
+  return (
+    <select
+      aria-label="Font"
+      title="Font"
+      value={current}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v) editor.chain().focus().setMark("textStyle", { fontFamily: v }).run();
+        else editor.chain().focus().setMark("textStyle", { fontFamily: null }).removeEmptyTextStyle().run();
+      }}
+      style={current ? { fontFamily: current } : undefined}
+      className="h-8 w-[7.5rem] cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
+    >
+      {FONT_FAMILIES.map((f) => (
+        <option key={f.value || "default"} value={f.value} style={f.value ? { fontFamily: f.value } : undefined}>
+          {f.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/* ── Font size dropdown ─────────────────────────────────────────────────── */
+function FontSizeSelect({ editor }: { editor: Editor }) {
+  const current = (editor.getAttributes("textStyle").fontSize as string) || "";
+  return (
+    <select
+      aria-label="Font size"
+      title="Font size"
+      value={current}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v) editor.chain().focus().setMark("textStyle", { fontSize: v }).run();
+        else editor.chain().focus().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run();
+      }}
+      className="h-8 w-[4.5rem] cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
+    >
+      {FONT_SIZES.map((s) => (
+        <option key={s.value || "default"} value={s.value}>
+          {s.label}
+        </option>
+      ))}
     </select>
   );
 }

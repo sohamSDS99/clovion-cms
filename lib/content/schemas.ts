@@ -193,6 +193,14 @@ export const updateContentSchema = z
      * AI-assisted draft merge -> writes an AI_GENERATION revision).
      */
     source: z.enum(["manual", "autosave", "ai_generation"]).optional(),
+    /**
+     * Push the saved edits live. Only meaningful when the item is already
+     * PUBLISHED: the public read API serves a cached `bodyHtml`, so an edit to a
+     * live post does not reach the site until it is re-rendered and the site
+     * cache is purged. The editor's "Update & publish" button sets this; a plain
+     * "Save changes"/autosave omits it so staged edits stay off the live site.
+     */
+    publish: z.boolean().optional(),
   })
   .strict();
 export type UpdateContentInput = z.infer<typeof updateContentSchema>;
