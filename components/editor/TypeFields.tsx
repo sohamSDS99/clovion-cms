@@ -1,13 +1,10 @@
 "use client";
 
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Input, Select } from "@/components/ui/Field";
+import { Input } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { MediaPicker } from "@/components/media/MediaPicker";
-import { useState, useEffect } from "react";
 import { isoToLocalInput, localInputToIso } from "@/lib/ui/format";
-import { api } from "@/lib/ui/client";
-import type { ContentType, FaqItem, MediaAsset } from "@/lib/ui/types";
+import type { ContentType, FaqItem } from "@/lib/ui/types";
 
 type TypeData = Record<string, unknown>;
 
@@ -35,9 +32,6 @@ export function TypeFields({
       <div className="space-y-4 p-5">
         {type === "WEBINAR" ? (
           <WebinarFields typeData={typeData} onChange={onChange} fieldErrors={fieldErrors} />
-        ) : null}
-        {type === "RESOURCE" ? (
-          <ResourceFields typeData={typeData} onChange={onChange} fieldErrors={fieldErrors} />
         ) : null}
         {type === "FAQ" ? (
           <FaqFields typeData={typeData} onChange={onChange} fieldErrors={fieldErrors} />
@@ -117,88 +111,6 @@ export function WebinarFields({
         placeholder="https://… (after the live event)"
         value={str(typeData.recordingUrl)}
         onChange={(e) => onChange({ recordingUrl: e.target.value || undefined })}
-      />
-    </>
-  );
-}
-
-/* ── RESOURCE ────────────────────────────────────────────────────────────── */
-export function ResourceFields({
-  typeData,
-  onChange,
-  fieldErrors,
-}: {
-  typeData: TypeData;
-  onChange: (patch: TypeData) => void;
-  fieldErrors?: Record<string, string>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pdf, setPdf] = useState<MediaAsset | null>(null);
-  const pdfId = str(typeData.pdfAssetId);
-
-  useEffect(() => {
-    if (!pdfId) {
-      setPdf(null);
-      return;
-    }
-    let active = true;
-    api.get<MediaAsset>(`/api/media/${pdfId}`).then((a) => active && setPdf(a)).catch(() => {});
-    return () => { active = false; };
-  }, [pdfId]);
-
-  return (
-    <>
-      <Select
-        label="Resource kind"
-        value={str(typeData.resourceKind)}
-        onChange={(e) => onChange({ resourceKind: e.target.value || undefined })}
-      >
-        <option value="">Select…</option>
-        <option value="EBOOK">Ebook</option>
-        <option value="WHITEPAPER">Whitepaper</option>
-        <option value="TEMPLATE">Template</option>
-        <option value="CHECKLIST">Checklist</option>
-        <option value="OTHER">Other</option>
-      </Select>
-
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-ink-soft">
-          PDF file <span className="font-normal text-ink-faint">· max 15MB</span>
-        </span>
-        {pdfId ? (
-          <div className="flex items-center justify-between gap-2 rounded-sm border border-line bg-paper p-2.5 text-sm">
-            <span className="truncate text-ink-soft">{pdf?.filename ?? "Attached PDF"}</span>
-            <div className="flex gap-1.5">
-              <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>Replace</Button>
-              <Button variant="ghost" size="sm" onClick={() => onChange({ pdfAssetId: undefined })}>Remove</Button>
-            </div>
-          </div>
-        ) : (
-          <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-            Attach PDF
-          </Button>
-        )}
-        {fieldErrors?.["typeData.pdfAssetId"] ? (
-          <p className="text-xs text-danger" role="alert">{fieldErrors["typeData.pdfAssetId"]}</p>
-        ) : null}
-      </div>
-
-      <label className="flex items-center gap-2 text-sm text-ink-soft">
-        <input
-          type="checkbox"
-          checked={Boolean(typeData.gated)}
-          onChange={(e) => onChange({ gated: e.target.checked })}
-          className="h-4 w-4 rounded border-line-strong text-accent focus:ring-accent/25"
-        />
-        Gated (requires a lead form to download)
-      </label>
-
-      <MediaPicker
-        open={open}
-        onClose={() => setOpen(false)}
-        kind="PDF"
-        title="Attach PDF"
-        onPick={(a) => onChange({ pdfAssetId: a.id })}
       />
     </>
   );

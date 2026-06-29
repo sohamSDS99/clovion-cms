@@ -359,6 +359,18 @@ function DetailsTab({
 }) {
   return (
     <div className="space-y-5">
+      {item.type === "RESOURCE" ? (
+        <DownloadableFileField
+          assetId={(draft.typeData.pdfAssetId as string | undefined) ?? null}
+          onChange={(id) =>
+            update({
+              typeData: { ...draft.typeData, pdfAssetId: id ?? undefined },
+            })
+          }
+          error={gateErrors["typeData.pdfAssetId"]}
+        />
+      ) : null}
+
       <CoverField
         coverAssetId={draft.coverAssetId}
         onChange={(id) => update({ coverAssetId: id })}
@@ -414,8 +426,9 @@ function DetailsTab({
         </Select>
       </div>
 
-      {/* Type-specific fields (Webinar/Resource/FAQ/News). RESOURCE = PDF + gating. */}
-      {item.type !== "BLOG" ? (
+      {/* Type-specific fields (Webinar/FAQ/News). RESOURCE's downloadable file
+          renders at the top of this tab, so it is handled separately above. */}
+      {item.type !== "BLOG" && item.type !== "RESOURCE" ? (
         <TypeFields
           type={item.type}
           typeData={draft.typeData}
@@ -504,6 +517,77 @@ function CoverField({
         onClose={() => setOpen(false)}
         kind="IMAGE"
         title="Choose cover image"
+        onPick={(a) => {
+          onChange(a.id);
+          setOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+/* ── Downloadable file (RESOURCE) — dashed uploader matching the cover field ─ */
+function DownloadableFileField({
+  assetId,
+  onChange,
+  error,
+}: {
+  assetId: string | null;
+  onChange: (id: string | null) => void;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [asset, setAsset] = useState<MediaAsset | null>(null);
+
+  useEffect(() => {
+    if (!assetId) {
+      setAsset(null);
+      return;
+    }
+    let active = true;
+    api
+      .get<MediaAsset>(`/api/media/${assetId}`)
+      .then((a) => active && setAsset(a))
+      .catch(() => active && setAsset(null));
+    return () => {
+      active = false;
+    };
+  }, [assetId]);
+
+  return (
+    <div>
+      <Label>Downloadable file</Label>
+      {assetId ? (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-paper-sunken p-2.5 text-sm">
+          <span className="truncate text-ink-soft">{asset?.filename ?? "Attached file"}</span>
+          <div className="flex gap-1.5">
+            <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+              Replace
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onChange(null)}>
+              Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex aspect-[16/6] w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong bg-paper text-ink-mute transition-colors hover:border-ink-faint hover:text-ink"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" />
+          </svg>
+          <span className="text-sm font-medium">Upload file</span>
+        </button>
+      )}
+      {error ? <p className="mt-1 text-xs text-danger" role="alert">{error}</p> : null}
+
+      <MediaPicker
+        open={open}
+        onClose={() => setOpen(false)}
+        kind="PDF"
+        title="Choose downloadable file"
         onPick={(a) => {
           onChange(a.id);
           setOpen(false);
