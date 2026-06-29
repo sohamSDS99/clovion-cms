@@ -6,8 +6,8 @@
  * stored Tiptap JSON to HTML on the public site (e.g. via @tiptap/html
  * `generateHTML(doc, editorExtensions)`).
  *
- * Heading levels are constrained to H2–H4 — the H1 is the content title, not a
- * body node. StarterKit (Tiptap v2) bundles paragraph/bold/italic/strike/code/
+ * All six heading levels (H1–H6) are enabled and exposed via the toolbar's
+ * Style dropdown. StarterKit (Tiptap v2) bundles paragraph/bold/italic/strike/code/
  * headings/lists/blockquote/hr/codeBlock/history; Underline, Link, Image, Table
  * and the custom Embed node are layered on.
  */
@@ -39,7 +39,7 @@ export const EMPTY_DOC = { type: "doc", content: [] } as const;
  */
 export const editorExtensions: Extensions = [
   StarterKit.configure({
-    heading: { levels: [1, 2, 3, 4] },
+    heading: { levels: [1, 2, 3, 4, 5, 6] },
   }),
   Underline,
   TextStyle,

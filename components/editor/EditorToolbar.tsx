@@ -67,22 +67,12 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
           </Btn>
           <Divider />
 
-          <BlockSelect editor={editor} />
-          <Divider />
-
-          <FontFamilySelect editor={editor} />
-          <FontSizeSelect editor={editor} />
-          <Divider />
-
-          <Btn label="Heading 1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-            <Hx n={1} />
-          </Btn>
-          <Btn label="Heading 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            <Hx n={2} />
-          </Btn>
-          <Btn label="Heading 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-            <Hx n={3} />
-          </Btn>
+          {/* Labelled dropdowns so it's clear which controls block style,
+              font family, and font size. The block-style menu replaces the
+              old H1/H2/H3 buttons and exposes all six heading levels. */}
+          <ToolbarField label="Style"><BlockSelect editor={editor} /></ToolbarField>
+          <ToolbarField label="Font"><FontFamilySelect editor={editor} /></ToolbarField>
+          <ToolbarField label="Size"><FontSizeSelect editor={editor} /></ToolbarField>
           <Divider />
 
           <Btn label="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
@@ -201,9 +191,6 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
                 <MenuItem onClick={() => { editor.chain().focus().setHardBreak().run(); setMoreOpen(false); }}>
                   Line break
                 </MenuItem>
-                <MenuItem onClick={() => { editor.chain().focus().toggleHeading({ level: 4 }).run(); setMoreOpen(false); }}>
-                  Heading 4
-                </MenuItem>
               </Popover>
             ) : null}
           </div>
@@ -282,30 +269,48 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
   );
 }
 
-/* ── Block-style dropdown ("Default" / Heading 1–3) ─────────────────────── */
+/* ── Shared dropdown styling + labelled wrapper (UI consistency) ─────────── */
+const SELECT_CLASS =
+  "h-8 cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25";
+
+/** A toolbar dropdown with a small leading label so its purpose is obvious. */
+function ToolbarField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center gap-1 whitespace-nowrap text-xs font-medium text-ink-mute">
+      {label}
+      {children}
+    </label>
+  );
+}
+
+/* ── Block-style dropdown (Paragraph / Heading 1–6) ─────────────────────── */
+const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 function BlockSelect({ editor }: { editor: Editor }) {
-  const value = editor.isActive("heading", { level: 1 })
-    ? "1"
-    : editor.isActive("heading", { level: 2 })
-      ? "2"
-      : editor.isActive("heading", { level: 3 })
-        ? "3"
-        : "p";
+  const active = HEADING_LEVELS.find((l) => editor.isActive("heading", { level: l }));
+  const value = active ? String(active) : "p";
   return (
     <select
-      aria-label="Block style"
+      aria-label="Paragraph style"
+      title="Paragraph style"
       value={value}
       onChange={(e) => {
         const v = e.target.value;
         if (v === "p") editor.chain().focus().setParagraph().run();
-        else editor.chain().focus().toggleHeading({ level: Number(v) as 1 | 2 | 3 }).run();
+        else
+          editor
+            .chain()
+            .focus()
+            .toggleHeading({ level: Number(v) as (typeof HEADING_LEVELS)[number] })
+            .run();
       }}
-      className="h-8 cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
+      className={`${SELECT_CLASS} w-28`}
     >
-      <option value="p">Default</option>
-      <option value="1">Heading 1</option>
-      <option value="2">Heading 2</option>
-      <option value="3">Heading 3</option>
+      <option value="p">Paragraph</option>
+      {HEADING_LEVELS.map((l) => (
+        <option key={l} value={l}>
+          Heading {l}
+        </option>
+      ))}
     </select>
   );
 }
@@ -324,7 +329,7 @@ function FontFamilySelect({ editor }: { editor: Editor }) {
         else editor.chain().focus().setMark("textStyle", { fontFamily: null }).removeEmptyTextStyle().run();
       }}
       style={current ? { fontFamily: current } : undefined}
-      className="h-8 w-24 cursor-pointer truncate rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
+      className={`${SELECT_CLASS} w-24 truncate`}
     >
       {FONT_FAMILIES.map((f) => (
         <option key={f.value || "default"} value={f.value} style={f.value ? { fontFamily: f.value } : undefined}>
@@ -348,7 +353,7 @@ function FontSizeSelect({ editor }: { editor: Editor }) {
         if (v) editor.chain().focus().setMark("textStyle", { fontSize: v }).run();
         else editor.chain().focus().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run();
       }}
-      className="h-8 w-[4.5rem] cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25"
+      className={`${SELECT_CLASS} w-[4.5rem]`}
     >
       {FONT_SIZES.map((s) => (
         <option key={s.value || "default"} value={s.value}>
@@ -472,14 +477,6 @@ function Btn({
 
 function Divider() {
   return <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />;
-}
-
-function Hx({ n }: { n: number }) {
-  return (
-    <span className="flex items-baseline font-semibold leading-none">
-      H<span className="text-[10px]">{n}</span>
-    </span>
-  );
 }
 
 /* ── Icons ──────────────────────────────────────────────────────────────── */
