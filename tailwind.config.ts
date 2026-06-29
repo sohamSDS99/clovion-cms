@@ -19,6 +19,7 @@ const config: Config = {
           DEFAULT: "var(--paper)",
           raised: "var(--paper-raised)",
           sunken: "var(--paper-sunken)",
+          sidebar: "var(--sidebar)",
         },
         ink: {
           DEFAULT: "var(--ink)",

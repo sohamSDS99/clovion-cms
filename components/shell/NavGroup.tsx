@@ -9,6 +9,8 @@ export interface NavSubItem {
   label: string;
   /** True when this sub-item matches the current route exactly. */
   active: boolean;
+  /** Optional leading icon for the sub-link. */
+  icon?: React.ReactNode;
 }
 
 /**
@@ -46,24 +48,24 @@ export function NavGroup({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
+          "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
           hasActiveChild && !open
-            ? "text-accent-ink"
+            ? "text-ink"
             : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
         )}
       >
-        <span className="text-current opacity-80">{icon}</span>
+        <span className="text-current opacity-70">{icon}</span>
         <span className="flex-1 text-left">{label}</span>
         <IconChevron
           className={cn(
-            "shrink-0 text-ink-mute transition-transform duration-150",
+            "shrink-0 text-ink-faint transition-transform duration-150",
             open && "rotate-90"
           )}
         />
       </button>
 
       {open ? (
-        <div className="mt-0.5 space-y-0.5 pl-4">
+        <div className="mt-0.5 space-y-0.5 pb-1 pl-8">
           {children ??
             items?.map((item) => (
               <Link
@@ -72,13 +74,22 @@ export function NavGroup({
                 onClick={onNavigate}
                 aria-current={item.active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-2 rounded-sm py-1.5 pl-4 pr-3 text-sm transition-colors",
-                  "border-l border-line",
+                  "flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm transition-colors",
                   item.active
-                    ? "border-accent bg-accent-soft font-medium text-accent-ink"
+                    ? "font-medium text-[var(--current)]"
                     : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
                 )}
               >
+                {item.icon ? (
+                  <span
+                    className={cn(
+                      "shrink-0",
+                      item.active ? "text-[var(--current)]" : "text-ink-faint"
+                    )}
+                  >
+                    {item.icon}
+                  </span>
+                ) : null}
                 {item.label}
               </Link>
             ))}

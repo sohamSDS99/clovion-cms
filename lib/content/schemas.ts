@@ -175,6 +175,8 @@ export const updateContentSchema = z
     excerpt: z.string().max(500).nullable().optional(),
     body: tiptapDoc.optional(),
     categoryId: uuid.nullable().optional(),
+    /** Category by name (connect-or-create); "" / null clears it. */
+    categoryName: z.string().trim().max(100).nullable().optional(),
     tags: z.array(z.string().min(1)).optional(),
     seo: seoSchema.optional(),
     typeData: z.record(z.string(), z.any()).optional(),

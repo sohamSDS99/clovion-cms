@@ -150,6 +150,7 @@ model AuthorProfile {
   id            String   @id @default(uuid()) @db.Uuid
   displayName   String
   slug          String   @unique
+  title         String? // job title / role shown on the public byline (e.g. "Content Manager")
   bio           String?  @db.Text
   avatarAssetId String?  @db.Uuid
   socialLinks   Json     @default("{}")

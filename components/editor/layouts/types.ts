@@ -11,6 +11,12 @@ export interface Draft {
   seo: SeoData;
   typeData: Record<string, unknown>;
   coverAssetId: string | null;
+  /** Category name (connect-or-create on save); "" = uncategorized. */
+  category: string;
+  /** Comma-separated tag names. */
+  tags: string;
+  /** Byline author profile id. */
+  authorProfileId: string | null;
 }
 
 /**

@@ -75,6 +75,7 @@ export const updateAuthorProfileSchema = z
       .max(160)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens.")
       .optional(),
+    title: z.string().trim().max(120).optional(),
     bio: z.string().trim().max(2000).optional(),
     socialLinks: socialLinksSchema.optional(),
     avatarAssetId: z.string().uuid().nullable().optional(),

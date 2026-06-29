@@ -4,7 +4,10 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/ui/cn";
-import { contentTypeLabel, CONTENT_TYPES } from "@/lib/ui/format";
+import {
+  contentTypePlural,
+  CONTENT_TYPE_ORDER,
+} from "@/lib/ui/format";
 import type { ContentType, Role } from "@/lib/ui/types";
 import { NavGroup, type NavSubItem } from "./NavGroup";
 
@@ -22,14 +25,8 @@ const ROLE_LABEL: Record<Role, string> = {
   VIEWER: "Viewer",
 };
 
-/** Settings sub-items + their UX role gates (API still enforces real authz). */
-const SETTINGS_ITEMS: { href: string; label: string; roles: Role[] }[] = [
-  { href: "/settings", label: "General", roles: ["ADMIN"] },
-  { href: "/users", label: "Users", roles: ["ADMIN"] },
-  { href: "/sops", label: "Writing SOPs", roles: ["ADMIN", "EDITOR"] },
-  { href: "/knowledge-base", label: "Knowledge Base", roles: ["ADMIN", "EDITOR"] },
-  { href: "/audit", label: "Audit log", roles: ["ADMIN", "EDITOR"] },
-];
+/** Public marketing site this CMS feeds. */
+const PUBLIC_SITE = "https://www.clovion.ai";
 
 /** Icon per content type for the collapsible groups. */
 function contentTypeIcon(type: ContentType): React.ReactNode {
@@ -41,7 +38,7 @@ function contentTypeIcon(type: ContentType): React.ReactNode {
     case "NEWS":
       return <IconNews />;
     case "RESOURCE":
-      return <IconBook />;
+      return <IconResource />;
     case "FAQ":
       return <IconHelp />;
     default:
@@ -83,10 +80,9 @@ function AppShellInner({
   const activeType = searchParams.get("type");
   const activeStatus = searchParams.get("status");
   const isReadOnly = user.role === "VIEWER";
-  const onContent = pathname === "/content" || pathname === "/content/new";
 
-  // Build the four sub-links for a content-type group, marking the exact one
-  // that matches pathname + ?type + ?status.
+  // Build the sub-links for a content-type group, marking the exact one that
+  // matches pathname + ?type + ?status.
   const contentSubItems = (type: ContentType): NavSubItem[] => {
     const items: NavSubItem[] = [];
 
@@ -94,22 +90,28 @@ function AppShellInner({
       items.push({
         href: `/content/new?type=${type}`,
         label: "Create New",
+        icon: <IconPlus />,
         active: pathname === "/content/new" && activeType === type,
       });
     }
 
-    const listLink = (status: "DRAFT" | "PUBLISHED" | "SCHEDULED", label: string): NavSubItem => ({
+    const listLink = (
+      status: "DRAFT" | "PUBLISHED" | "SCHEDULED",
+      label: string,
+      icon: React.ReactNode
+    ): NavSubItem => ({
       href: `/content?type=${type}&status=${status}`,
       label,
+      icon,
       active:
         pathname === "/content" &&
         activeType === type &&
         activeStatus === status,
     });
 
-    items.push(listLink("DRAFT", "Drafts"));
-    items.push(listLink("PUBLISHED", "Published"));
-    items.push(listLink("SCHEDULED", "Scheduled"));
+    items.push(listLink("DRAFT", "Drafts", <IconPencil />));
+    items.push(listLink("PUBLISHED", "Published", <IconCheckCircle />));
+    items.push(listLink("SCHEDULED", "Scheduled", <IconCalendar />));
 
     return items;
   };
@@ -119,39 +121,47 @@ function AppShellInner({
     (pathname === "/content" && activeType === type) ||
     (pathname === "/content/new" && activeType === type);
 
-  const settingsSubItems: NavSubItem[] = SETTINGS_ITEMS.filter((i) =>
-    i.roles.includes(user.role)
-  ).map((i) => ({
-    href: i.href,
-    label: i.label,
-    active: pathname === i.href || pathname.startsWith(`${i.href}/`),
-  }));
+  const settingsActive =
+    pathname === "/settings" || pathname.startsWith("/settings/");
 
-  const showSettings =
-    (user.role === "ADMIN" || user.role === "EDITOR") &&
-    settingsSubItems.length > 0;
-  const settingsOpen = settingsSubItems.some((i) => i.active);
-
+  const showKnowledgeBase = user.role === "ADMIN" || user.role === "EDITOR";
+  const kbActive =
+    pathname === "/knowledge-base" || pathname.startsWith("/knowledge-base/");
+  const mediaActive = pathname === "/media" || pathname.startsWith("/media/");
   const dashboardActive = pathname === "/";
 
   return (
-    <div className="flex min-h-screen bg-paper text-ink">
+    <div className="flex h-screen overflow-hidden bg-paper text-ink">
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-line bg-paper-raised transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex h-full w-64 flex-col border-r border-line bg-paper-sidebar transition-transform md:static md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center gap-2 border-b border-line px-5">
-          <span className="grid h-7 w-7 place-items-center rounded bg-accent text-sm font-bold text-white">
-            C
+        {/* Brand */}
+        <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-line px-5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-ink">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/favicon.png"
+              alt=""
+              aria-hidden="true"
+              className="h-4.5 w-4.5 invert"
+              style={{ height: "1.1rem", width: "1.1rem" }}
+            />
           </span>
-          <span className="font-display text-lg font-semibold tracking-tight">
-            Clovion
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-base font-semibold tracking-tight text-ink">
+              Clovion
+            </span>
+            <span className="truncate text-[11px] text-ink-mute">
+              Content Studio
+            </span>
           </span>
         </div>
 
+        {/* Scrollable nav — ONLY this region scrolls; brand + footer stay put */}
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
           {/* Dashboard */}
           <Link
@@ -159,103 +169,105 @@ function AppShellInner({
             onClick={closeMobile}
             aria-current={dashboardActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               dashboardActive
-                ? "bg-accent-soft text-accent-ink"
+                ? "bg-paper-sunken text-ink"
                 : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
             )}
           >
-            <span className="text-current opacity-80">
-              <IconHome />
+            <span className="text-current opacity-70">
+              <IconGrid />
             </span>
             Dashboard
           </Link>
 
-          {/* CONTENT — single collapsible parent holding the five type groups */}
-          <NavGroup
-            label="Content"
-            icon={<IconLayers />}
-            defaultOpen={onContent}
-            containsActive={onContent}
-            onNavigate={closeMobile}
-          >
-            {CONTENT_TYPES.map((type) => (
-              <NavGroup
-                key={type}
-                label={contentTypeLabel(type)}
-                icon={contentTypeIcon(type)}
-                items={contentSubItems(type)}
-                defaultOpen={contentGroupOpen(type)}
-                onNavigate={closeMobile}
-              />
-            ))}
-          </NavGroup>
+          {/* CONTENT — one collapsible group per content type */}
+          <SectionLabel>Content</SectionLabel>
+          {CONTENT_TYPE_ORDER.map((type) => (
+            <NavGroup
+              key={type}
+              label={contentTypePlural(type)}
+              icon={contentTypeIcon(type)}
+              items={contentSubItems(type)}
+              defaultOpen={contentGroupOpen(type)}
+              onNavigate={closeMobile}
+            />
+          ))}
 
           {/* WORKSPACE */}
           <SectionLabel>Workspace</SectionLabel>
-          <Link
-            href="/media"
-            onClick={closeMobile}
-            aria-current={
-              pathname === "/media" || pathname.startsWith("/media/")
-                ? "page"
-                : undefined
-            }
-            className={cn(
-              "flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
-              pathname === "/media" || pathname.startsWith("/media/")
-                ? "bg-accent-soft text-accent-ink"
-                : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
-            )}
-          >
-            <span className="text-current opacity-80">
-              <IconImage />
-            </span>
-            Media Library
-          </Link>
 
-          {showSettings ? (
-            <NavGroup
-              label="Settings"
-              icon={<IconGear />}
-              items={settingsSubItems}
-              defaultOpen={settingsOpen}
+          {showKnowledgeBase ? (
+            <NavLink
+              href="/knowledge-base"
+              active={kbActive}
+              icon={<IconBook />}
               onNavigate={closeMobile}
-            />
+            >
+              Knowledge Base
+            </NavLink>
           ) : null}
+
+          <NavLink
+            href="/media"
+            active={mediaActive}
+            icon={<IconImage />}
+            onNavigate={closeMobile}
+          >
+            Media Library
+          </NavLink>
+
+          <NavLink
+            href="/settings"
+            active={settingsActive}
+            icon={<IconGear />}
+            onNavigate={closeMobile}
+          >
+            Settings
+          </NavLink>
         </nav>
 
-        <div className="border-t border-line p-3">
-          <div className="flex items-center gap-2.5 rounded-sm px-2 py-1.5">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-paper-sunken text-xs font-semibold text-ink-soft">
+        {/* Footer — pinned (does not scroll) */}
+        <div className="shrink-0 border-t border-line p-3">
+          <a
+            href={PUBLIC_SITE}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-paper-sunken hover:text-ink"
+          >
+            <span className="opacity-70">
+              <IconGlobe />
+            </span>
+            View site
+          </a>
+
+          <div className="mt-1 flex items-center gap-2.5 rounded-md px-2 py-1.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-xs font-semibold text-white">
               {(user.name ?? user.email).slice(0, 1).toUpperCase()}
             </span>
-            <div className="min-w-0 flex-1">
+            <Link
+              href="/settings?tab=profile"
+              onClick={closeMobile}
+              className="min-w-0 flex-1"
+            >
               <p className="truncate text-sm font-medium text-ink">
                 {user.name ?? user.email}
               </p>
               <p className="truncate text-xs text-ink-mute">
-                {ROLE_LABEL[user.role]}
+                {user.name ? user.email : ROLE_LABEL[user.role]}
               </p>
-            </div>
+            </Link>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                aria-label="Sign out"
+                title="Sign out"
+                className="rounded-md p-1.5 text-ink-mute transition-colors hover:bg-paper-sunken hover:text-ink"
+              >
+                <IconLogout />
+              </button>
+            </form>
           </div>
-          <Link
-            href="/profile"
-            onClick={closeMobile}
-            className="mt-1.5 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-paper-sunken hover:text-ink"
-          >
-            <IconUser />
-            My profile
-          </Link>
-          <form action={signOutAction} className="mt-0.5">
-            <button
-              type="submit"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-ink-soft transition-colors hover:bg-paper-sunken hover:text-ink"
-            >
-              <IconLogout />
-              Sign out
-            </button>
-          </form>
         </div>
       </aside>
 
@@ -268,8 +280,8 @@ function AppShellInner({
       ) : null}
 
       {/* Main */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-3 border-b border-line bg-paper-raised/80 px-4 backdrop-blur md:hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-paper-raised/80 px-4 backdrop-blur md:hidden">
           <button
             onClick={() => setMobileOpen(true)}
             aria-label="Open navigation"
@@ -279,12 +291,44 @@ function AppShellInner({
               <path d="M3 6h18M3 12h18M3 18h18" />
             </svg>
           </button>
-          <span className="font-display text-base font-semibold">Clovion CMS</span>
+          <span className="text-base font-semibold">Clovion CMS</span>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
+  );
+}
+
+/* ── Flat nav link (Workspace items) ────────────────────────────────────── */
+function NavLink({
+  href,
+  active,
+  icon,
+  onNavigate,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  icon: React.ReactNode;
+  onNavigate: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-paper-sunken text-ink"
+          : "text-ink-soft hover:bg-paper-sunken hover:text-ink"
+      )}
+    >
+      <span className="text-current opacity-70">{icon}</span>
+      {children}
+    </Link>
   );
 }
 
@@ -313,11 +357,23 @@ function Svg(props: React.SVGProps<SVGSVGElement>) {
     />
   );
 }
-function IconHome() {
-  return <Svg><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /></Svg>;
+function SvgSm(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    />
+  );
 }
-function IconLayers() {
-  return <Svg><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 13 9 5 9-5" /></Svg>;
+function IconGrid() {
+  return <Svg><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></Svg>;
 }
 function IconDoc() {
   return <Svg><path d="M6 2h8l4 4v16H6z" /><path d="M14 2v4h4" /><path d="M9 13h6M9 17h6" /></Svg>;
@@ -331,6 +387,9 @@ function IconNews() {
 function IconHelp() {
   return <Svg><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.7" /><path d="M12 17h.01" /></Svg>;
 }
+function IconResource() {
+  return <Svg><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /><path d="M12 3v11" /><path d="m8 10 4 4 4-4" /></Svg>;
+}
 function IconImage() {
   return <Svg><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9.5" r="1.5" /><path d="m21 16-5-5L5 20" /></Svg>;
 }
@@ -340,9 +399,21 @@ function IconBook() {
 function IconGear() {
   return <Svg><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1l2.1-2.1M17 7l2.1-2.1" /></Svg>;
 }
-function IconUser() {
-  return <Svg><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></Svg>;
+function IconGlobe() {
+  return <Svg><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z" /></Svg>;
 }
 function IconLogout() {
   return <Svg><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></Svg>;
+}
+function IconPlus() {
+  return <SvgSm><path d="M12 5v14M5 12h14" /></SvgSm>;
+}
+function IconPencil() {
+  return <SvgSm><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></SvgSm>;
+}
+function IconCheckCircle() {
+  return <SvgSm><circle cx="12" cy="12" r="9" /><path d="m8.5 12 2.5 2.5 4.5-5" /></SvgSm>;
+}
+function IconCalendar() {
+  return <SvgSm><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></SvgSm>;
 }

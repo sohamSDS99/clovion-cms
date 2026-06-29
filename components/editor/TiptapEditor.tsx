@@ -22,10 +22,15 @@ export function TiptapEditor({
   initialDoc,
   onChange,
   onReady,
+  fill = false,
+  placeholder = "Start writing, or paste a YouTube link to embed a video…",
 }: {
   initialDoc: TiptapDoc;
   onChange: (doc: TiptapDoc) => void;
   onReady?: (editor: Editor | null) => void;
+  /** Fill the parent's height with an internally-scrolling body (no own border). */
+  fill?: boolean;
+  placeholder?: string;
 }) {
   const editor = useEditor({
     // Avoid SSR hydration mismatch warnings in Next App Router.
@@ -64,6 +69,28 @@ export function TiptapEditor({
 
   const isEmpty = editor?.isEmpty ?? !hasContent(initialDoc);
 
+  if (fill) {
+    // Borderless, fills the parent column; ONLY the body scrolls.
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-line">
+          <EditorToolbar editor={editor} />
+        </div>
+        <div
+          className="relative min-h-0 flex-1 cursor-text overflow-y-auto px-6 py-4"
+          onClick={() => editor?.chain().focus().run()}
+        >
+          {isEmpty ? (
+            <p className="pointer-events-none absolute left-6 top-4 text-ink-faint">
+              {placeholder}
+            </p>
+          ) : null}
+          <EditorContent editor={editor} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded border border-line bg-paper-raised shadow-card">
       <EditorToolbar editor={editor} />
@@ -73,7 +100,7 @@ export function TiptapEditor({
       >
         {isEmpty ? (
           <p className="pointer-events-none absolute left-5 top-4 text-ink-faint">
-            Start writing, or paste a YouTube link to embed a video…
+            {placeholder}
           </p>
         ) : null}
         <EditorContent editor={editor} />

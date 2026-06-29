@@ -25,6 +25,11 @@ export const metadata: Metadata = {
   title: "Clovion CMS",
   description:
     "Standalone headless content engine for the Clovion AI marketing site",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

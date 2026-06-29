@@ -1,6 +1,6 @@
-import { SopManager } from "@/components/settings/SopManager";
+import { redirect } from "next/navigation";
 
-/** Writing SOP management (P1): list, create, edit, activate. */
+/** Writing SOPs are now the master prompt under Settings → Writing Style. */
 export default function SopsPage() {
-  return <SopManager />;
+  redirect("/settings?tab=writing");
 }

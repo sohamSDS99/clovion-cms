@@ -10,29 +10,34 @@
  */
 
 :root {
-  /* Paper / surface ramp (warm off-white) */
-  --paper: #faf9f6;
+  /* Paper / surface ramp (clean neutral) */
+  --paper: #ffffff;
   --paper-raised: #ffffff;
-  --paper-sunken: #f3f1ea;
+  --paper-sunken: #f4f4f5;
+  --sidebar: #fafafa;
 
-  /* Ink ramp (near-black, warm) */
-  --ink: #1c1a17;
-  --ink-soft: #4a463f;
-  --ink-mute: #79736a;
-  --ink-faint: #a8a195;
+  /* Ink ramp (neutral near-black) */
+  --ink: #18181b;
+  --ink-soft: #3f3f46;
+  --ink-mute: #71717a;
+  --ink-faint: #a1a1aa;
 
   /* Borders / hairlines */
-  --line: #e6e2d8;
-  --line-strong: #d6d1c4;
+  --line: #ebebeb;
+  --line-strong: #dcdcdc;
 
-  /* Accent — deep emerald */
+  /* Accent — kept emerald for "published / positive" semantics + links */
   --accent: #1f6b53;
   --accent-hover: #18563f;
   --accent-soft: #e7f0ea;
   --accent-ink: #0f3a2c;
 
+  /* Current — active leaf / current page highlight (amber) */
+  --current: #d97706;
+  --current-soft: #fef3e2;
+
   /* Status hues (muted, editorial) */
-  --status-draft: #79736a;
+  --status-draft: #71717a;
   --status-review: #b06f17;
   --status-scheduled: #2563a8;
   --status-published: #1f6b53;
@@ -40,10 +45,10 @@
   --status-archived: #8a8378;
 
   /* Feedback */
-  --danger: #a13a2c;
-  --danger-soft: #f6e7e3;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
   --warn: #b06f17;
-  --warn-soft: #f6efe1;
+  --warn-soft: #fbf2e3;
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -146,6 +151,43 @@ body {
 }
 .tiptap li > p {
   margin: 0;
+}
+.tiptap h1 {
+  font-family: var(--font-serif);
+  font-size: 2.1rem;
+  font-weight: 600;
+  line-height: 1.15;
+  margin-top: 1.6em;
+  letter-spacing: -0.015em;
+}
+.tiptap mark {
+  background: #fde68a;
+  border-radius: 3px;
+  padding: 0.05em 0.15em;
+  box-decoration-break: clone;
+}
+/* Task list (checklist) */
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.tiptap ul[data-type="taskList"] li > label {
+  margin-top: 0.25rem;
+  user-select: none;
+}
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+}
+.tiptap ul[data-type="taskList"] input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 .tiptap blockquote {
   border-left: 3px solid var(--accent);

@@ -57,12 +57,42 @@ export function contentTypeLabel(type: ContentType): string {
   }
 }
 
+/** Plural / section label for a content type (used in nav + dashboard). */
+export function contentTypePlural(type: ContentType): string {
+  switch (type) {
+    case "BLOG":
+      return "Blogs";
+    case "WEBINAR":
+      return "Webinars";
+    case "NEWS":
+      return "News";
+    case "RESOURCE":
+      return "Resources";
+    case "FAQ":
+      return "FAQ Articles";
+    default:
+      return type;
+  }
+}
+
 export const CONTENT_TYPES: ContentType[] = [
   "BLOG",
   "WEBINAR",
   "NEWS",
   "RESOURCE",
   "FAQ",
+];
+
+/**
+ * Display order for the nav + dashboard module list. Matches the marketing
+ * IA (Blogs → News → Resources → FAQ), with Webinars surfaced last.
+ */
+export const CONTENT_TYPE_ORDER: ContentType[] = [
+  "BLOG",
+  "NEWS",
+  "RESOURCE",
+  "FAQ",
+  "WEBINAR",
 ];
 
 export const CONTENT_STATUSES: ContentStatus[] = [

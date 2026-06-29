@@ -161,6 +161,97 @@ export async function getActiveSopForType(contentType: ContentType) {
   });
 }
 
+/* ── Master writing style (single org-wide prompt) ──────────────────────────
+ * The Settings → "Writing Style" tab manages ONE master prompt that the AI
+ * follows for every content type. It is modeled as a single, always-active
+ * WritingSOP named MASTER_SOP_NAME applied to all five types, so it flows
+ * through the existing generation pipeline (`getActiveSopForType`) unchanged.
+ */
+export const MASTER_SOP_NAME = "Master Writing Style";
+
+const ALL_CONTENT_TYPES: ContentType[] = [
+  "BLOG",
+  "WEBINAR",
+  "NEWS",
+  "RESOURCE",
+  "FAQ",
+];
+
+/** The current master writing-style prompt body (empty string if unset). */
+export async function getMasterWritingStyle(): Promise<{
+  body: string;
+  updatedAt: Date | null;
+}> {
+  const sop =
+    (await prisma.writingSOP.findFirst({
+      where: { name: MASTER_SOP_NAME },
+      orderBy: { updatedAt: "desc" },
+    })) ??
+    (await prisma.writingSOP.findFirst({
+      where: { isActive: true },
+      orderBy: { updatedAt: "desc" },
+    }));
+  return { body: sop?.body ?? "", updatedAt: sop?.updatedAt ?? null };
+}
+
+/**
+ * Upsert the master writing-style prompt. Requires `edit_writing_sop`
+ * (ADMIN/EDITOR). The master SOP is applied to ALL content types and set
+ * active; every OTHER active SOP is deactivated so the master alone governs
+ * generation (preserves the one-active-per-type invariant).
+ */
+export async function setMasterWritingStyle(user: SessionUser, body: string) {
+  await requireCapability("edit_writing_sop");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.writingSOP.findFirst({
+      where: { name: MASTER_SOP_NAME },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const master = existing
+      ? await tx.writingSOP.update({
+          where: { id: existing.id },
+          data: {
+            body,
+            appliesTo: ALL_CONTENT_TYPES,
+            isActive: true,
+            version: existing.version + 1,
+            updatedById: user.id,
+          },
+        })
+      : await tx.writingSOP.create({
+          data: {
+            name: MASTER_SOP_NAME,
+            body,
+            appliesTo: ALL_CONTENT_TYPES,
+            isActive: true,
+            version: 1,
+            createdById: user.id,
+            updatedById: user.id,
+          },
+        });
+
+    // Deactivate any other active SOP so the master alone governs generation.
+    await tx.writingSOP.updateMany({
+      where: { isActive: true, id: { not: master.id } },
+      data: { isActive: false, updatedById: user.id },
+    });
+
+    return master;
+  });
+
+  await recordAudit({
+    actorId: user.id,
+    entityType: "sop",
+    entityId: result.id,
+    action: "updated",
+    diff: { master: true, version: result.version },
+  });
+
+  return { body: result.body, updatedAt: result.updatedAt };
+}
+
 /**
  * Delete an SOP. Requires `edit_writing_sop`. An active SOP must be
  * deactivated first (409) so we never silently remove a governing SOP.

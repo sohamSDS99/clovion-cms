@@ -4,18 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Editor } from "@tiptap/react";
-import { ContentLayout } from "./layouts/ContentLayout";
 import type { Draft } from "./layouts/types";
-import { ActionBar } from "./ActionBar";
 import { RevisionDrawer } from "./RevisionDrawer";
-import { AiWritePanel, type AiInsertPayload } from "./AiWritePanel";
-import { AiAssistedBadge } from "./AiAssistedBadge";
+import { EditorWorkspace } from "./EditorWorkspace";
+import type { AiInsertPayload } from "./AiWritePanel";
 import { applyAiInsert } from "./applyAiInsert";
-import { Button } from "@/components/ui/Button";
 import { Loading, InlineError } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, api, errorMessage } from "@/lib/ui/client";
-import { contentTypeLabel, slugFromTitle } from "@/lib/ui/format";
+import { slugFromTitle } from "@/lib/ui/format";
 import type {
   ContentItem,
   ContentRevision,
@@ -52,6 +49,7 @@ export function ContentEditor({
 
   const [item, setItem] = useState<ContentItem | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [authors, setAuthors] = useState<{ id: string; displayName: string }[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [transitioning, setTransitioning] = useState(false);
@@ -60,7 +58,6 @@ export function ContentEditor({
   const [revOpen, setRevOpen] = useState(false);
 
   // ── AI Write state ──────────────────────────────────────────────────────
-  const [aiOpen, setAiOpen] = useState(false);
   const [aiAssisted, setAiAssisted] = useState(false); // session/badge flag
   const [selection, setSelection] = useState<{ has: boolean; text: string }>({
     has: false,
@@ -89,6 +86,20 @@ export function ContentEditor({
     };
   }, [contentId]);
 
+  // Author profiles for the byline picker (non-blocking).
+  useEffect(() => {
+    let active = true;
+    api
+      .get<{ profiles: { id: string; displayName: string }[] }>(
+        "/api/author-profiles"
+      )
+      .then((r) => active && setAuthors(r.profiles))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // ── Persist helper (manual + autosave + AI insert share this) ────────────
   const persist = useCallback(
     async (source: "manual" | "autosave" | "ai_generation") => {
@@ -104,6 +115,9 @@ export function ContentEditor({
           seo: d.seo,
           typeData: d.typeData,
           coverAssetId: d.coverAssetId,
+          categoryName: d.category.trim(),
+          tags: d.tags.split(",").map((t) => t.trim()).filter(Boolean),
+          ...(d.authorProfileId ? { authorProfileId: d.authorProfileId } : {}),
           source,
         });
         setItem(updated);
@@ -275,90 +289,28 @@ export function ContentEditor({
   const isOwner = item.createdById === userId;
 
   return (
-    <div className="flex flex-col">
-      {/* Sticky action header */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-line bg-paper-raised/90 px-6 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/content"
-            className="rounded p-1.5 text-ink-mute hover:bg-paper-sunken hover:text-ink"
-            aria-label="Back to content"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
-          </Link>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-ink-faint">
-              {contentTypeLabel(item.type)}
-            </p>
-            <SaveIndicator state={saveState} />
-          </div>
-          <AiAssistedBadge visible={aiAssisted} />
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setAiOpen(true)}
-            title="Generate a draft with AI"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" />
-              <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
-            </svg>
-            AI Write
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setRevOpen(true)}>
-            History
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={saveState === "saving"}
-            onClick={() => persist("manual")}
-          >
-            Save
-          </Button>
-        </div>
-      </div>
-
-      {/* Lifecycle bar */}
-      <div className="border-b border-line bg-paper px-6 py-3">
-        <ActionBar
-          item={item}
-          role={role}
-          isOwner={isOwner}
-          busy={transitioning}
-          onTransition={transition}
-        />
-        {gateWarnings.length > 0 ? (
-          <ul className="mt-2 space-y-0.5 text-xs text-warn">
-            {gateWarnings.map((w) => (
-              <li key={w.field}>⚠ {w.message}</li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-
-      {/* Per-type layout: arranges title/body/fields by what each type needs. */}
-      <ContentLayout
+    <>
+      <EditorWorkspace
         item={item}
         draft={draft}
         update={update}
         gateErrors={gateErrors}
+        gateWarnings={gateWarnings}
         contentId={contentId}
         initialSchema={schemaMarkupOf(item)}
+        role={role}
+        isOwner={isOwner}
+        saveState={saveState}
+        transitioning={transitioning}
+        authors={authors}
+        selection={selection}
+        aiAssisted={aiAssisted}
         onEditorReady={handleEditorReady}
+        onSaveDraft={() => persist("manual")}
+        onTransition={transition}
+        onAiInsert={handleAiInsert}
+        onOpenHistory={() => setRevOpen(true)}
         onDelete={handleDelete}
-      />
-
-      <AiWritePanel
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-        contentId={contentId}
-        contentType={item.type}
-        hasSelection={selection.has}
-        selectedText={selection.text}
-        onInsert={handleAiInsert}
       />
 
       <RevisionDrawer
@@ -372,7 +324,7 @@ export function ContentEditor({
           setAiAssisted(currentRevisionIsAi(it));
         }}
       />
-    </div>
+    </>
   );
 }
 
@@ -386,6 +338,9 @@ function toDraft(it: ContentItem): Draft {
     seo: it.seo ?? {},
     typeData: it.typeData ?? {},
     coverAssetId: it.coverAssetId,
+    category: it.categoryName ?? "",
+    tags: (it.tagNames ?? []).join(", "),
+    authorProfileId: it.authorProfileId ?? null,
   };
 }
 
@@ -403,25 +358,4 @@ function currentRevisionIsAi(it: ContentItem): boolean {
 /** Read schemaMarkup off the item without coupling to the shared type. */
 function schemaMarkupOf(it: ContentItem): unknown {
   return (it as { schemaMarkup?: unknown }).schemaMarkup ?? null;
-}
-
-function SaveIndicator({ state }: { state: SaveState }) {
-  const map: Record<SaveState, { label: string; cls: string }> = {
-    idle: { label: "All changes saved", cls: "text-ink-faint" },
-    dirty: { label: "Unsaved changes", cls: "text-ink-mute" },
-    saving: { label: "Saving…", cls: "text-ink-mute" },
-    saved: { label: "Saved", cls: "text-accent" },
-    error: { label: "Save failed", cls: "text-danger" },
-  };
-  const { label, cls } = map[state];
-  return (
-    <span className={`flex items-center gap-1.5 text-sm font-medium ${cls}`}>
-      {state === "saving" ? (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
-      ) : (
-        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      )}
-      {label}
-    </span>
-  );
 }

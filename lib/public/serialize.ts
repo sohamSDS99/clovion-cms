@@ -46,6 +46,7 @@ export interface PublicSeo {
 export interface PublicAuthor {
   displayName: string;
   slug: string;
+  title?: string | null;
   avatar?: string | null;
   socials: Record<string, string>;
   bio?: string | null;
@@ -127,6 +128,7 @@ function toAuthor(profile: AuthorProfile | null, avatarUrl?: string | null): Pub
   return {
     displayName: profile.displayName,
     slug: profile.slug,
+    title: profile.title ?? null,
     avatar: avatarUrl ?? null,
     socials: (profile.socialLinks ?? {}) as Record<string, string>,
     bio: profile.bio ?? null,
