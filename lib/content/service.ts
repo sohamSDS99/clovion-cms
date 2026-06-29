@@ -357,6 +357,21 @@ export async function updateContent(
     diff: { source },
   });
 
+  // "Update & publish": push the just-saved edits live. The public read API
+  // serves the cached `bodyHtml` column (see lib/public/serialize) and the site
+  // ISR-caches that response, so an edit to a live post does not reach the site
+  // until we re-render that cache and purge the site cache. Gated on an explicit
+  // `publish` flag (not status alone) so autosave and plain "Save changes" leave
+  // the live version untouched. Best-effort: both helpers swallow their errors.
+  if (input.publish && existing.status === "PUBLISHED") {
+    await renderAndCache(item);
+    await firePublishWebhook(
+      item,
+      "publish",
+      slug !== existing.slug ? { previousSlug: existing.slug } : {},
+    );
+  }
+
   // Return the enriched client shape (tag names + category name) so the editor
   // can re-render the Details panel without an extra round-trip.
   return getContent(item.id);

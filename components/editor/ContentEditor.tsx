@@ -102,7 +102,10 @@ export function ContentEditor({
 
   // ── Persist helper (manual + autosave + AI insert share this) ────────────
   const persist = useCallback(
-    async (source: "manual" | "autosave" | "ai_generation") => {
+    async (
+      source: "manual" | "autosave" | "ai_generation",
+      opts: { publish?: boolean } = {}
+    ) => {
       const d = draftRef.current;
       if (!d) return;
       setSaveState("saving");
@@ -119,12 +122,17 @@ export function ContentEditor({
           tags: d.tags.split(",").map((t) => t.trim()).filter(Boolean),
           ...(d.authorProfileId ? { authorProfileId: d.authorProfileId } : {}),
           source,
+          // "Update & publish": push the saved edits live (server re-renders the
+          // public cache + purges the site). Plain saves/autosave omit this.
+          ...(opts.publish ? { publish: true } : {}),
         });
         setItem(updated);
         setSaveState("saved");
         // A manual save clears the AI-assisted badge (human reviewed & saved).
         if (source === "manual") setAiAssisted(false);
-        if (source === "manual") toast.success("Saved.");
+        if (source === "manual") {
+          toast.success(opts.publish ? "Updated. Your changes are live." : "Saved.");
+        }
       } catch (e) {
         setSaveState("error");
         toast.error(errorMessage(e));
@@ -307,6 +315,7 @@ export function ContentEditor({
         aiAssisted={aiAssisted}
         onEditorReady={handleEditorReady}
         onSaveDraft={() => persist("manual")}
+        onUpdateAndPublish={() => persist("manual", { publish: true })}
         onTransition={transition}
         onAiInsert={handleAiInsert}
         onOpenHistory={() => setRevOpen(true)}

@@ -74,6 +74,7 @@ export function EditorWorkspace({
   aiAssisted,
   onEditorReady,
   onSaveDraft,
+  onUpdateAndPublish,
   onTransition,
   onAiInsert,
   onOpenHistory,
@@ -95,6 +96,7 @@ export function EditorWorkspace({
   aiAssisted: boolean;
   onEditorReady: (editor: Editor | null) => void;
   onSaveDraft: () => void;
+  onUpdateAndPublish: () => void;
   onTransition: (action: TransitionAction, scheduledAt?: string) => void;
   onAiInsert: (payload: AiInsertPayload) => Promise<void> | void;
   onOpenHistory: () => void;
@@ -113,6 +115,16 @@ export function EditorWorkspace({
     ...spec,
     enabled: canRoleAttempt(role, spec.action, { isOwner, selfPublish: true }),
   }));
+
+  // Published posts get a dedicated bar: Unpublish · Save changes · Update &
+  // publish (a save that also pushes the edits live). "Save changes" stages
+  // edits without touching the live site; "Update & publish" propagates them.
+  const isPublished = item.status === "PUBLISHED";
+  const canUnpublish = canRoleAttempt(role, "unpublish", { isOwner });
+  const canPublishUpdate = canRoleAttempt(role, "publish_now", {
+    isOwner,
+    selfPublish: true,
+  });
 
   function confirmSchedule() {
     const iso = localInputToIso(scheduleAt);
@@ -149,38 +161,72 @@ export function EditorWorkspace({
           <Button variant="ghost" size="sm" onClick={onOpenHistory}>
             History
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={saveState === "saving"}
-            onClick={onSaveDraft}
-          >
-            <IconSave /> Save draft
-          </Button>
-          {lifecycle.map((spec) => {
-            const isPublish =
-              spec.action === "publish_now" || spec.action === "approve_publish";
-            const isSchedule = spec.action === "schedule";
-            const variant = isPublish ? "primary" : "secondary";
-            // Keep the bar tidy: secondary lifecycle moves (submit/reject/etc.)
-            // render as ghost so Publish/Schedule stay the focal actions.
-            const v = isPublish || isSchedule ? variant : "ghost";
-            return (
+          {isPublished ? (
+            <>
               <Button
-                key={spec.action}
-                variant={v}
+                variant="ghost"
                 size="sm"
-                disabled={!spec.enabled || transitioning}
-                title={!spec.enabled ? "Your role can't perform this action" : undefined}
-                onClick={() =>
-                  isSchedule ? setScheduleOpen(true) : onTransition(spec.action)
-                }
+                disabled={!canUnpublish || transitioning}
+                title={!canUnpublish ? "Your role can't perform this action" : undefined}
+                onClick={() => onTransition("unpublish")}
               >
-                {isSchedule ? <IconCalendar /> : isPublish ? <IconSend /> : null}
-                {spec.label}
+                Unpublish
               </Button>
-            );
-          })}
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={saveState === "saving"}
+                onClick={onSaveDraft}
+              >
+                <IconSave /> Save changes
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={saveState === "saving"}
+                disabled={!canPublishUpdate || transitioning}
+                title={!canPublishUpdate ? "Your role can't perform this action" : undefined}
+                onClick={onUpdateAndPublish}
+              >
+                <IconSend /> Update &amp; publish
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={saveState === "saving"}
+                onClick={onSaveDraft}
+              >
+                <IconSave /> Save draft
+              </Button>
+              {lifecycle.map((spec) => {
+                const isPublish =
+                  spec.action === "publish_now" || spec.action === "approve_publish";
+                const isSchedule = spec.action === "schedule";
+                const variant = isPublish ? "primary" : "secondary";
+                // Keep the bar tidy: secondary lifecycle moves (submit/reject/etc.)
+                // render as ghost so Publish/Schedule stay the focal actions.
+                const v = isPublish || isSchedule ? variant : "ghost";
+                return (
+                  <Button
+                    key={spec.action}
+                    variant={v}
+                    size="sm"
+                    disabled={!spec.enabled || transitioning}
+                    title={!spec.enabled ? "Your role can't perform this action" : undefined}
+                    onClick={() =>
+                      isSchedule ? setScheduleOpen(true) : onTransition(spec.action)
+                    }
+                  >
+                    {isSchedule ? <IconCalendar /> : isPublish ? <IconSend /> : null}
+                    {spec.label}
+                  </Button>
+                );
+              })}
+            </>
+          )}
         </div>
       </header>
 

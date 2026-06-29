@@ -28,6 +28,7 @@ import TextStyle from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import type { Extensions } from "@tiptap/react";
 import { Embed } from "./embed";
+import { FontFamily, FontSize } from "./fontExtensions";
 
 /** An empty Tiptap document (matches the server's EMPTY_DOC). */
 export const EMPTY_DOC = { type: "doc", content: [] } as const;
@@ -43,6 +44,8 @@ export const editorExtensions: Extensions = [
   Underline,
   TextStyle,
   Color,
+  FontFamily,
+  FontSize,
   Highlight.configure({ multicolor: false }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   TaskList,
