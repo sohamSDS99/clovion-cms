@@ -162,7 +162,9 @@ export function ResourceFields({
       </Select>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-medium text-ink-soft">PDF file</span>
+        <span className="text-[13px] font-medium text-ink-soft">
+          PDF file <span className="font-normal text-ink-faint">· max 15MB</span>
+        </span>
         {pdfId ? (
           <div className="flex items-center justify-between gap-2 rounded-sm border border-line bg-paper p-2.5 text-sm">
             <span className="truncate text-ink-soft">{pdf?.filename ?? "Attached PDF"}</span>

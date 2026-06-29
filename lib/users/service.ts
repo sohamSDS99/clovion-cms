@@ -250,6 +250,47 @@ export async function updateUser(
 }
 
 /**
+ * Permanently remove a user (manage_users). Cascades the user's accounts +
+ * sessions (FK onDelete: Cascade); the AuthorProfile is intentionally LEFT
+ * intact so existing bylines on published content are preserved. Guards: an
+ * actor can't delete themselves, and the last active Admin can't be removed.
+ */
+export async function deleteUser(actor: SessionUser, id: string): Promise<void> {
+  assertCan(actor.role, "manage_users");
+
+  if (id === actor.id) {
+    throw new ConflictError("You can't delete your own account.");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, email: true, role: true, status: true },
+  });
+  if (!target) throw new NotFoundError("User not found.");
+
+  // Lockout guard: deletion is equivalent to removing the user entirely, so
+  // treat it as suspending+demoting for the last-admin check.
+  const all = await prisma.user.findMany({
+    select: { id: true, role: true, status: true },
+  });
+  if (isLastActiveAdmin(all as AdminGuardUser[], id, { status: "SUSPENDED" })) {
+    throw new ConflictError(
+      "Cannot delete the last active Admin — promote another Admin first."
+    );
+  }
+
+  await prisma.user.delete({ where: { id } });
+
+  await recordAudit({
+    actorId: actor.id,
+    entityType: "user",
+    entityId: id,
+    action: "deleted",
+    diff: { email: target.email, role: target.role },
+  });
+}
+
+/**
  * Consume an invite (UNAUTHENTICATED). Finds the user by single-use token with
  * a non-expired expiry, sets the password, activates them, and clears the
  * token. Never reveals whether an email exists; all failures are a generic 400.
@@ -341,6 +382,7 @@ const profileSelect = {
   id: true,
   displayName: true,
   slug: true,
+  title: true,
   bio: true,
   avatarAssetId: true,
   socialLinks: true,
@@ -362,6 +404,16 @@ export async function getMyProfile(
   return prisma.authorProfile.findUnique({
     where: { id: user.authorProfileId },
     select: profileSelect,
+  });
+}
+
+/** All author profiles (id + display name), for the editor's byline picker. */
+export async function listAuthorProfiles(): Promise<
+  { id: string; displayName: string }[]
+> {
+  return prisma.authorProfile.findMany({
+    orderBy: { displayName: "asc" },
+    select: { id: true, displayName: true },
   });
 }
 
@@ -405,6 +457,7 @@ export async function updateAuthorProfile(
     data: {
       ...(patch.displayName !== undefined ? { displayName: patch.displayName } : {}),
       ...(patch.slug !== undefined ? { slug: patch.slug } : {}),
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.bio !== undefined ? { bio: patch.bio } : {}),
       ...(patch.socialLinks !== undefined
         ? { socialLinks: patch.socialLinks as Prisma.InputJsonValue }

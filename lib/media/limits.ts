@@ -26,7 +26,7 @@ export const PDF_MIME = new Set(["application/pdf"]);
 export const SIZE_LIMITS: Record<Exclude<MediaKind, "OTHER">, number> = {
   IMAGE: 20 * MB,
   VIDEO: 500 * MB,
-  PDF: 50 * MB,
+  PDF: 15 * MB,
 };
 
 /** Map a MIME type to its MediaKind. Unknown types => OTHER (rejected). */

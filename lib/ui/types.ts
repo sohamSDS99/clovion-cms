@@ -63,6 +63,10 @@ export interface ContentItem {
   seo: SeoData;
   typeData: Record<string, unknown>;
   categoryId: string | null;
+  /** Category name (enriched by GET /api/content/[id]); null when uncategorized. */
+  categoryName?: string | null;
+  /** Tag names (enriched by GET /api/content/[id]). */
+  tagNames?: string[];
   currentRevisionId: string | null;
   createdAt: string;
   updatedAt: string;

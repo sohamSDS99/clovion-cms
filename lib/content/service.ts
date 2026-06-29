@@ -179,12 +179,21 @@ export async function createContent(
 // ── Read (FR-CONTENT-03) ──────────────────────────────────────────────────────
 
 /** Fetch a single non-deleted content item or throw 404. */
-export async function getContent(id: string): Promise<ContentItem> {
+export async function getContent(id: string) {
   const item = await prisma.contentItem.findFirst({
     where: { id, deletedAt: null },
+    include: {
+      tags: { select: { name: true } },
+      category: { select: { name: true } },
+    },
   });
   if (!item) throw new NotFoundError("Content not found.");
-  return item;
+  const { tags, category, ...rest } = item;
+  return {
+    ...rest,
+    tagNames: tags.map((t) => t.name),
+    categoryName: category?.name ?? null,
+  };
 }
 
 export interface ListContentResult {
@@ -268,6 +277,31 @@ export async function updateContent(
   const nextTypeData = (input.typeData ?? existing.typeData) as Prisma.InputJsonValue;
   const nextBody = (input.body ?? existing.body) as Prisma.InputJsonValue;
 
+  // Category may be set by name (connect-or-create), by id, or cleared ("" name).
+  // Resolve to a scalar categoryId so the update stays in the unchecked variant.
+  let categoryIdToSet: string | null | undefined = undefined;
+  if (input.categoryName !== undefined) {
+    if (input.categoryName) {
+      const slug = slugify(input.categoryName);
+      const cat = await prisma.category.upsert({
+        where: { slug },
+        update: {},
+        create: {
+          name: input.categoryName,
+          slug,
+          createdById: user.id,
+          updatedById: user.id,
+        },
+        select: { id: true },
+      });
+      categoryIdToSet = cat.id;
+    } else {
+      categoryIdToSet = null; // clear
+    }
+  } else if (input.categoryId !== undefined) {
+    categoryIdToSet = input.categoryId;
+  }
+
   const item = await prisma.$transaction(async (tx) => {
     const revision = await tx.contentRevision.create({
       data: {
@@ -290,8 +324,7 @@ export async function updateContent(
         body: nextBody,
         coverAssetId:
           input.coverAssetId === undefined ? undefined : input.coverAssetId,
-        categoryId:
-          input.categoryId === undefined ? undefined : input.categoryId,
+        categoryId: categoryIdToSet,
         seo: input.seo === undefined ? undefined : nextSeo,
         typeData: input.typeData === undefined ? undefined : nextTypeData,
         schemaMarkup:
@@ -324,7 +357,9 @@ export async function updateContent(
     diff: { source },
   });
 
-  return item;
+  // Return the enriched client shape (tag names + category name) so the editor
+  // can re-render the Details panel without an extra round-trip.
+  return getContent(item.id);
 }
 
 // ── Soft delete (FR-CONTENT-06) ───────────────────────────────────────────────

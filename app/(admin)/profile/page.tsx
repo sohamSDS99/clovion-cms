@@ -1,6 +1,6 @@
-import { ProfileEditor } from "@/components/users/ProfileEditor";
+import { redirect } from "next/navigation";
 
-/** Current user's author-profile editor (FR-USER-02). */
+/** Profile now lives under Settings → Profile Settings. */
 export default function ProfilePage() {
-  return <ProfileEditor />;
+  redirect("/settings?tab=profile");
 }
