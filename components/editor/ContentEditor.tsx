@@ -341,7 +341,10 @@ function toDraft(it: ContentItem): Draft {
   return {
     title: it.title,
     slug: it.slug,
-    slugTouched: true, // existing items have a real slug; don't auto-overwrite.
+    // Drafts keep tracking the title (the create-time slug is an "Untitled X"
+    // placeholder, not user-chosen); published items lock the slug so live URLs
+    // never break. Editing the slug field sets slugTouched=true and pins it.
+    slugTouched: it.status !== "DRAFT",
     excerpt: it.excerpt ?? "",
     body: it.body ?? { type: "doc", content: [] },
     seo: it.seo ?? {},
