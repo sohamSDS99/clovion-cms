@@ -82,10 +82,10 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
   }
 
   // --- Cover image -----------------------------------------------------
-  // ERROR for BLOG/RESEARCH (cover required), WARNING for all other types.
+  // ERROR for BLOG (cover required), WARNING for all other types.
   if (!item.coverAssetId) {
-    if (item.type === "BLOG" || item.type === "RESEARCH") {
-      errors.push({ field: "coverAssetId", message: "Posts require a cover image." });
+    if (item.type === "BLOG") {
+      errors.push({ field: "coverAssetId", message: "Blog posts require a cover image." });
     } else {
       warnings.push({
         field: "coverAssetId",
@@ -96,11 +96,14 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
 
   // --- Type-specific requirements --------------------------------------
   switch (item.type) {
-    case "RESOURCE": {
+    // RESEARCH is a gated downloadable report — same publish requirements as
+    // RESOURCE (a PDF must be attached to publish).
+    case "RESOURCE":
+    case "RESEARCH": {
       if (!item.typeData?.pdfAssetId) {
         errors.push({
           field: "typeData.pdfAssetId",
-          message: "Resources require a PDF asset.",
+          message: "A downloadable PDF is required.",
         });
       }
       break;

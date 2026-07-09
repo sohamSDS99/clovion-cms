@@ -185,7 +185,7 @@ export function generateJsonLd(item: JsonLdInput): JsonLd {
     case "BLOG":
       return articleJsonLd(item, "BlogPosting");
     case "RESEARCH":
-      return articleJsonLd(item, "BlogPosting");
+      return resourceJsonLd(item);
     case "NEWS":
       return articleJsonLd(item, "NewsArticle");
     case "WEBINAR":

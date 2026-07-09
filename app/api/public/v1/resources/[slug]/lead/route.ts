@@ -28,7 +28,7 @@ import {
   BadRequestError,
 } from "@/lib/api/http";
 import { prisma } from "@/lib/db/prisma";
-import { getPublishedByTypeSlug } from "@/lib/public/query";
+import { getPublishedGatedBySlug } from "@/lib/public/query";
 import { getSignedDownloadUrl } from "@/lib/media/storage";
 import { buildSubmissionSchema } from "@/lib/leadform/schemas";
 import {
@@ -71,8 +71,8 @@ export const POST = withRoute(
     });
     if (!rl.ok) return tooMany(rl.resetSec);
 
-    // (1) Resolve the published resource.
-    const item = await getPublishedByTypeSlug("RESOURCE", slug);
+    // (1) Resolve the published gated item (RESOURCE or RESEARCH).
+    const item = await getPublishedGatedBySlug(slug);
     if (!item) throw new NotFoundError("Published resource not found.");
 
     // (2) Must actually be gated, with a lead form and a PDF to unlock.
