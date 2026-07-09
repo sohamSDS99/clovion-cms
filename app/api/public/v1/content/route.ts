@@ -24,7 +24,7 @@ import { withCache } from "@/lib/public/cache";
 export const runtime = "nodejs";
 
 const querySchema = z.object({
-  type: z.enum(["BLOG", "WEBINAR", "NEWS", "RESOURCE", "FAQ"]).optional(),
+  type: z.enum(["BLOG", "RESEARCH", "WEBINAR", "NEWS", "RESOURCE", "FAQ"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().uuid().optional(),
 });

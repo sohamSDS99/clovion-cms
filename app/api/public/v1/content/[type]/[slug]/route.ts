@@ -19,7 +19,7 @@ import { withCache } from "@/lib/public/cache";
 export const runtime = "nodejs";
 
 const paramsSchema = z.object({
-  type: z.enum(["BLOG", "WEBINAR", "NEWS", "RESOURCE", "FAQ"]),
+  type: z.enum(["BLOG", "RESEARCH", "WEBINAR", "NEWS", "RESOURCE", "FAQ"]),
   slug: z.string().min(1).max(300),
 });
 

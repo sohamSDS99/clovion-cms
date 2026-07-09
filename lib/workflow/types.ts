@@ -20,7 +20,7 @@ export type ContentStatus =
 export type Role = "ADMIN" | "EDITOR" | "AUTHOR" | "CONTRIBUTOR" | "VIEWER";
 
 /** Content types (must match Prisma `ContentType` enum). */
-export type ContentType = "BLOG" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ";
+export type ContentType = "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ";
 
 /**
  * Actions that drive lifecycle transitions (FR-CONTENT-08).

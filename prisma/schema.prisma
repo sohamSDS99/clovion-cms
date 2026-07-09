@@ -45,6 +45,7 @@ enum UserStatus {
 
 enum ContentType {
   BLOG
+  RESEARCH
   WEBINAR
   NEWS
   RESOURCE
