@@ -184,6 +184,8 @@ export function generateJsonLd(item: JsonLdInput): JsonLd {
   switch (item.type) {
     case "BLOG":
       return articleJsonLd(item, "BlogPosting");
+    case "RESEARCH":
+      return articleJsonLd(item, "BlogPosting");
     case "NEWS":
       return articleJsonLd(item, "NewsArticle");
     case "WEBINAR":

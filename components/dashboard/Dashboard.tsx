@@ -29,7 +29,7 @@ interface LeadFormsResponse {
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Content types offered in the "Quick create" grid (matches the marketing IA). */
-const QUICK_CREATE: ContentType[] = ["BLOG", "NEWS", "RESOURCE", "FAQ"];
+const QUICK_CREATE: ContentType[] = ["BLOG", "RESEARCH", "NEWS", "RESOURCE", "FAQ"];
 
 /**
  * Dashboard — workspace overview. Top KPI strip (published this week / total

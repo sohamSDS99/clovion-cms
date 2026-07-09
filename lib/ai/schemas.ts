@@ -28,6 +28,7 @@ export type UpdateConfigInput = z.infer<typeof updateConfigSchema>;
 
 export const aiContentTypeSchema = z.enum([
   "BLOG",
+  "RESEARCH",
   "WEBINAR",
   "NEWS",
   "RESOURCE",

@@ -13,6 +13,7 @@ import { z } from "zod";
 
 export const contentTypeSchema = z.enum([
   "BLOG",
+  "RESEARCH",
   "WEBINAR",
   "NEWS",
   "RESOURCE",
@@ -106,6 +107,9 @@ export const newsTypeDataSchema = z
 export function typeDataSchemaFor(type: ContentTypeInput) {
   switch (type) {
     case "BLOG":
+      return blogTypeDataSchema;
+    case "RESEARCH":
+      // Research mirrors BLOG — long-form article with no extra structured fields.
       return blogTypeDataSchema;
     case "WEBINAR":
       return webinarTypeDataSchema;

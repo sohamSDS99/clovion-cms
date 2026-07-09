@@ -6,6 +6,7 @@ import { z } from "zod";
 /** Mirrors the Prisma ContentType enum (UPPERCASE values). */
 export const contentTypeEnum = z.enum([
   "BLOG",
+  "RESEARCH",
   "WEBINAR",
   "NEWS",
   "RESOURCE",

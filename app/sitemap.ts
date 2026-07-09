@@ -35,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   // Resilient: a DB hiccup yields the homepage-only sitemap, never a 500/build break.
-  let rows: { slug: string; type: "BLOG" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ"; updatedAt: Date }[] = [];
+  let rows: { slug: string; type: "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ"; updatedAt: Date }[] = [];
   try {
     rows = await prisma.contentItem.findMany({
       where: { status: "PUBLISHED", deletedAt: null },

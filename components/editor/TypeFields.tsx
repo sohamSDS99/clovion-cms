@@ -24,7 +24,8 @@ export function TypeFields({
   onChange: (patch: TypeData) => void;
   fieldErrors?: Record<string, string>;
 }) {
-  if (type === "BLOG") return null;
+  // BLOG and RESEARCH are plain long-form articles with no extra structured fields.
+  if (type === "BLOG" || type === "RESEARCH") return null;
 
   return (
     <Card>
@@ -45,7 +46,7 @@ export function TypeFields({
 }
 
 function labelFor(type: ContentType): string {
-  return { WEBINAR: "Webinar", RESOURCE: "Resource", FAQ: "FAQ", NEWS: "News", BLOG: "Blog" }[type];
+  return { WEBINAR: "Webinar", RESOURCE: "Resource", FAQ: "FAQ", NEWS: "News", BLOG: "Blog", RESEARCH: "Research" }[type];
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");

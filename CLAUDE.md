@@ -9,9 +9,9 @@ from the core Clovion AI product (the `~/Clovion AI` / `~/Clovion AI Console` ap
 shared runtime, DB, or auth. The public website is a separate codebase that reads
 published content from `/api/public/v1` and reacts to publish webhooks/cache-purge.
 
-Five content types (BLOG, WEBINAR, NEWS, RESOURCE, FAQ) share one lifecycle and one
-Tiptap editor; type-specific fields live in `ContentItem.typeData` (single-table
-inheritance).
+Six content types (BLOG, RESEARCH, WEBINAR, NEWS, RESOURCE, FAQ) share one lifecycle
+and one Tiptap editor; type-specific fields live in `ContentItem.typeData` (single-table
+inheritance). RESEARCH mirrors BLOG — a plain long-form article with no extra fields.
 
 ## Build phases
 

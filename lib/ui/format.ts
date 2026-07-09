@@ -44,6 +44,8 @@ export function contentTypeLabel(type: ContentType): string {
   switch (type) {
     case "BLOG":
       return "Blog";
+    case "RESEARCH":
+      return "Research";
     case "WEBINAR":
       return "Webinar";
     case "NEWS":
@@ -62,6 +64,8 @@ export function contentTypePlural(type: ContentType): string {
   switch (type) {
     case "BLOG":
       return "Blogs";
+    case "RESEARCH":
+      return "Research";
     case "WEBINAR":
       return "Webinars";
     case "NEWS":
@@ -77,6 +81,7 @@ export function contentTypePlural(type: ContentType): string {
 
 export const CONTENT_TYPES: ContentType[] = [
   "BLOG",
+  "RESEARCH",
   "WEBINAR",
   "NEWS",
   "RESOURCE",
@@ -89,6 +94,7 @@ export const CONTENT_TYPES: ContentType[] = [
  */
 export const CONTENT_TYPE_ORDER: ContentType[] = [
   "BLOG",
+  "RESEARCH",
   "NEWS",
   "RESOURCE",
   "FAQ",

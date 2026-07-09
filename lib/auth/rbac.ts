@@ -29,7 +29,7 @@ export type Capability =
   | "edit_others_author_profile"
   | "view_audit_log";
 
-export type ContentType = "BLOG" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ";
+export type ContentType = "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ";
 
 export interface AuthzContext {
   /** True when the acting user owns the target resource. */

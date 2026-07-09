@@ -428,7 +428,7 @@ function DetailsTab({
 
       {/* Type-specific fields (Webinar/FAQ/News). RESOURCE's downloadable file
           renders at the top of this tab, so it is handled separately above. */}
-      {item.type !== "BLOG" && item.type !== "RESOURCE" ? (
+      {item.type !== "BLOG" && item.type !== "RESEARCH" && item.type !== "RESOURCE" ? (
         <TypeFields
           type={item.type}
           typeData={draft.typeData}

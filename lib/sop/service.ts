@@ -171,6 +171,7 @@ export const MASTER_SOP_NAME = "Master Writing Style";
 
 const ALL_CONTENT_TYPES: ContentType[] = [
   "BLOG",
+  "RESEARCH",
   "WEBINAR",
   "NEWS",
   "RESOURCE",

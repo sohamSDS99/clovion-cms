@@ -33,6 +33,8 @@ function contentTypeIcon(type: ContentType): React.ReactNode {
   switch (type) {
     case "BLOG":
       return <IconDoc />;
+    case "RESEARCH":
+      return <IconFlask />;
     case "WEBINAR":
       return <IconVideo />;
     case "NEWS":
@@ -395,6 +397,9 @@ function IconImage() {
 }
 function IconBook() {
   return <Svg><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 0-3 3z" /><path d="M18 7v13" /></Svg>;
+}
+function IconFlask() {
+  return <Svg><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3" /><path d="M7.5 15h9" /></Svg>;
 }
 function IconGear() {
   return <Svg><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1l2.1-2.1M17 7l2.1-2.1" /></Svg>;
