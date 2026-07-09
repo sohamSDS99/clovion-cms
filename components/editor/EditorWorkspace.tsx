@@ -35,6 +35,7 @@ import type {
 import type { Draft } from "./layouts/types";
 import { TiptapEditor } from "./TiptapEditor";
 import { TypeFields } from "./TypeFields";
+import { ResourceFile } from "./parts/ResourceFile";
 import { SeoPanel } from "./SeoPanel";
 import { SchemaPanel } from "./SchemaPanel";
 import { AiAssistedBadge } from "./AiAssistedBadge";
@@ -368,6 +369,19 @@ function DetailsTab({
             })
           }
           error={gateErrors["typeData.pdfAssetId"]}
+        />
+      ) : null}
+
+      {/* RESEARCH is a gated downloadable report: the full file + gating panel
+          (PDF, kind, gated toggle + lead form) so authors can require an email
+          before the PDF is released. */}
+      {item.type === "RESEARCH" ? (
+        <ResourceFile
+          typeData={draft.typeData}
+          onChange={(patch) =>
+            update({ typeData: { ...draft.typeData, ...patch } })
+          }
+          fieldErrors={gateErrors}
         />
       ) : null}
 

@@ -109,8 +109,8 @@ export function typeDataSchemaFor(type: ContentTypeInput) {
     case "BLOG":
       return blogTypeDataSchema;
     case "RESEARCH":
-      // Research mirrors BLOG — long-form article with no extra structured fields.
-      return blogTypeDataSchema;
+      // Research mirrors RESOURCE — a gated downloadable report (PDF + lead gate).
+      return resourceTypeDataSchema;
     case "WEBINAR":
       return webinarTypeDataSchema;
     case "RESOURCE":

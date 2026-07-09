@@ -17,6 +17,7 @@ export function ContentLayout(props: EditorLayoutProps) {
     case "WEBINAR":
       return <WebinarLayout {...props} />;
     case "RESOURCE":
+    case "RESEARCH":
       return <ResourceLayout {...props} />;
     case "FAQ":
       return <FaqLayout {...props} />;

@@ -97,16 +97,16 @@ export async function updateLeadForm(
 }
 
 /**
- * Find published RESOURCE items that reference this lead form via
- * `typeData.leadFormId`. Used to soft-guard deletion.
+ * Find published gated-download items (RESOURCE or RESEARCH) that reference this
+ * lead form via `typeData.leadFormId`. Used to soft-guard deletion.
  *
  * Prisma's JSON filtering on Postgres supports `path`/`equals`, so we can do
- * this in the DB rather than scanning every resource.
+ * this in the DB rather than scanning every item.
  */
 export async function resourcesUsingLeadForm(leadFormId: string) {
   return prisma.contentItem.findMany({
     where: {
-      type: "RESOURCE",
+      type: { in: ["RESOURCE", "RESEARCH"] },
       deletedAt: null,
       status: "PUBLISHED",
       typeData: {

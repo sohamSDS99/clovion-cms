@@ -143,9 +143,12 @@ function toCategory(category: Category | null): PublicCategory | null {
   return category ? { name: category.name, slug: category.slug } : null;
 }
 
-/** True when a RESOURCE item is gated behind a lead form. */
+/**
+ * True when a gated-download item is gated behind a lead form. RESOURCE and
+ * RESEARCH share the same gated-download model (PDF + optional lead gate).
+ */
 function isGatedResource(item: ContentItem): boolean {
-  if (item.type !== "RESOURCE") return false;
+  if (item.type !== "RESOURCE" && item.type !== "RESEARCH") return false;
   const td = (item.typeData ?? {}) as Record<string, unknown>;
   return Boolean(td.gated) || Boolean(td.leadFormId);
 }
@@ -169,15 +172,19 @@ function toPublicTypeData(item: ContentItem): Record<string, unknown> {
       };
     case "FAQ":
       return { faqItems: Array.isArray(td.faqItems) ? td.faqItems : [] };
-    case "RESOURCE": {
+    // RESOURCE and RESEARCH are both gated downloadable reports with the same
+    // public shape. A gated item NEVER emits its file/pdf URL (NFR-SEC-03/NG3).
+    case "RESOURCE":
+    case "RESEARCH": {
       const gated = isGatedResource(item);
       const base: Record<string, unknown> = {
         resourceType: td.resourceType,
+        resourceKind: td.resourceKind,
         fileLabel: td.fileLabel,
         gated,
         leadFormId: td.leadFormId,
       };
-      // NFR-SEC-03 / NG3: surface the download URL ONLY for ungated resources.
+      // NFR-SEC-03 / NG3: surface the download URL ONLY for ungated items.
       if (!gated && typeof td.downloadUrl === "string") {
         base.downloadUrl = td.downloadUrl;
       }

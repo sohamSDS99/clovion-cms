@@ -67,6 +67,29 @@ export async function getPublishedByTypeSlug(
   })) as ContentItemWithRelations | null;
 }
 
+/**
+ * Gated-download content types that share the resource download/lead pipeline.
+ * RESEARCH is modeled as a gated report identical in behavior to RESOURCE.
+ */
+export const GATED_DOWNLOAD_TYPES = ["RESOURCE", "RESEARCH"] as const;
+
+/**
+ * Fetch one published GATED-DOWNLOAD item (RESOURCE or RESEARCH) by slug, or
+ * null. Powers the public `/resources/[slug]` gated view + lead endpoints, which
+ * serve both types under one URL space. Slugs are unique per type; on the rare
+ * cross-type collision, RESOURCE wins — `type` desc orders "RESOURCE" before
+ * "RESEARCH" so behaviour is deterministic and backwards-compatible.
+ */
+export async function getPublishedGatedBySlug(
+  slug: string,
+): Promise<ContentItemWithRelations | null> {
+  return (await prisma.contentItem.findFirst({
+    where: publishedWhere({ slug, type: { in: [...GATED_DOWNLOAD_TYPES] } }),
+    orderBy: { type: "desc" },
+    include: PUBLIC_INCLUDE,
+  })) as ContentItemWithRelations | null;
+}
+
 /** Fetch a public author profile by slug, or null (must be isPublic). */
 export async function getPublicAuthor(slug: string) {
   return prisma.authorProfile.findFirst({

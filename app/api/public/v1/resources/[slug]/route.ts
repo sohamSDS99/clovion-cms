@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 import { withRoute, json, parseQuery, NotFoundError } from "@/lib/api/http";
-import { getPublishedByTypeSlug } from "@/lib/public/query";
+import { getPublishedGatedBySlug } from "@/lib/public/query";
 import { toPublicContent } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
 import { prisma } from "@/lib/db/prisma";
@@ -30,7 +30,9 @@ export const GET = withRoute(
       paramsSchema,
     );
 
-    const item = await getPublishedByTypeSlug("RESOURCE", slug);
+    // Resolves a published RESOURCE or RESEARCH by slug — both are gated
+    // downloads served from this endpoint under one /resources URL space.
+    const item = await getPublishedGatedBySlug(slug);
     if (!item) throw new NotFoundError("Published resource not found.");
 
     // Shared serializer already enforces "no PDF URL for gated resources".

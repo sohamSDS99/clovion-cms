@@ -43,6 +43,19 @@ describe("validateForPublish — passing cases per type", () => {
     expect(res.ok).toBe(true);
   });
 
+  it("RESEARCH passes with pdfAssetId (gated report — PDF required)", () => {
+    const res = validateForPublish(
+      base({ type: "RESEARCH", typeData: { pdfAssetId: "pdf_1" } })
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  it("RESEARCH fails to publish without a PDF", () => {
+    const res = validateForPublish(base({ type: "RESEARCH", typeData: {} }));
+    expect(res.ok).toBe(false);
+    expect(fields(res.errors)).toContain("typeData.pdfAssetId");
+  });
+
   it("WEBINAR passes with startAt + registrationUrl", () => {
     const res = validateForPublish(
       base({
