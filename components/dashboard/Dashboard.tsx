@@ -121,13 +121,13 @@ export function Dashboard() {
                     </p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full table-fixed text-sm">
                         <thead>
                           <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-ink-mute">
-                            <th className="px-5 py-3 font-semibold">Title</th>
-                            <th className="px-3 py-3 font-semibold">Module</th>
-                            <th className="px-3 py-3 font-semibold">Status</th>
-                            <th className="px-5 py-3 font-semibold">Updated</th>
+                            <th className="w-2/5 px-5 py-3 font-semibold">Title</th>
+                            <th className="w-1/5 px-3 py-3 font-semibold">Module</th>
+                            <th className="w-1/5 px-3 py-3 font-semibold">Status</th>
+                            <th className="w-1/5 px-5 py-3 font-semibold">Updated</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-line">
@@ -138,7 +138,7 @@ export function Dashboard() {
                                 key={item.id}
                                 className="transition-colors hover:bg-paper-sunken/50"
                               >
-                                <td className="max-w-0 px-5 py-3.5">
+                                <td className="px-5 py-3.5">
                                   <Link
                                     href={`/content/${item.id}/edit`}
                                     className="block font-medium text-ink hover:underline"
