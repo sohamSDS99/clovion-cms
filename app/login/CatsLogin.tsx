@@ -513,7 +513,7 @@ export default function CatsLogin({
           setSaiyan(false);
           cycle();
         }, 7000);
-      }, 14000 + Math.random() * 14000);
+      }, 15000);
     };
     cycle();
     return () => {
