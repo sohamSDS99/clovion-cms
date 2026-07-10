@@ -107,10 +107,10 @@ export const newsTypeDataSchema = z
 export function typeDataSchemaFor(type: ContentTypeInput) {
   switch (type) {
     case "BLOG":
-      return blogTypeDataSchema;
     case "RESEARCH":
-      // Research mirrors RESOURCE — a gated downloadable report (PDF + lead gate).
-      return resourceTypeDataSchema;
+      // Research is a long-form article (like BLOG): the body is the report,
+      // cover optional, no required file. Author decides what to upload.
+      return blogTypeDataSchema;
     case "WEBINAR":
       return webinarTypeDataSchema;
     case "RESOURCE":

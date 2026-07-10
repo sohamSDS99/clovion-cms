@@ -43,17 +43,18 @@ describe("validateForPublish — passing cases per type", () => {
     expect(res.ok).toBe(true);
   });
 
-  it("RESEARCH passes with pdfAssetId (gated report — PDF required)", () => {
+  it("RESEARCH publishes as an article — no PDF required", () => {
+    // A text/body research report has no file; it must still publish.
+    const res = validateForPublish(base({ type: "RESEARCH", typeData: {} }));
+    expect(res.ok).toBe(true);
+    expect(fields(res.errors)).not.toContain("typeData.pdfAssetId");
+  });
+
+  it("RESEARCH still publishes with an optional file attached", () => {
     const res = validateForPublish(
       base({ type: "RESEARCH", typeData: { pdfAssetId: "pdf_1" } })
     );
     expect(res.ok).toBe(true);
-  });
-
-  it("RESEARCH fails to publish without a PDF", () => {
-    const res = validateForPublish(base({ type: "RESEARCH", typeData: {} }));
-    expect(res.ok).toBe(false);
-    expect(fields(res.errors)).toContain("typeData.pdfAssetId");
   });
 
   it("WEBINAR passes with startAt + registrationUrl", () => {

@@ -17,10 +17,11 @@ export function ContentLayout(props: EditorLayoutProps) {
     case "WEBINAR":
       return <WebinarLayout {...props} />;
     case "RESOURCE":
-    case "RESEARCH":
       return <ResourceLayout {...props} />;
     case "FAQ":
       return <FaqLayout {...props} />;
+    // RESEARCH uses the article-centric GenericLayout (body-first, cover
+    // optional) — a research report is written, not just a file upload.
     default:
       return <GenericLayout {...props} />;
   }

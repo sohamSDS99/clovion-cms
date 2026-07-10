@@ -176,11 +176,11 @@ function toCoverImage(asset: MediaAsset | null): PublicCoverImage | null {
 }
 
 /**
- * True when a gated-download item is gated behind a lead form. RESOURCE and
- * RESEARCH share the same gated-download model (PDF + optional lead gate).
+ * True when a RESOURCE is gated behind a lead form. RESEARCH is a plain
+ * long-form article (not a gated download), so it is never gated here.
  */
 function isGatedResource(item: ContentItem): boolean {
-  if (item.type !== "RESOURCE" && item.type !== "RESEARCH") return false;
+  if (item.type !== "RESOURCE") return false;
   const td = (item.typeData ?? {}) as Record<string, unknown>;
   return Boolean(td.gated) || Boolean(td.leadFormId);
 }
@@ -207,10 +207,9 @@ function toPublicTypeData(
       };
     case "FAQ":
       return { faqItems: Array.isArray(td.faqItems) ? td.faqItems : [] };
-    // RESOURCE and RESEARCH are both gated downloadable reports with the same
-    // public shape. A gated item NEVER emits its file/pdf URL (NFR-SEC-03/NG3).
-    case "RESOURCE":
-    case "RESEARCH": {
+    // RESOURCE is a gated downloadable report. A gated item NEVER emits its
+    // file/pdf URL (NFR-SEC-03/NG3). RESEARCH is a plain article → default case.
+    case "RESOURCE": {
       const gated = isGatedResource(item);
       const base: Record<string, unknown> = {
         resourceType: td.resourceType,
