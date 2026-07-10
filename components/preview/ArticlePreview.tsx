@@ -80,7 +80,7 @@ export function ArticlePreview({
         {faqItems.length > 0 ? (
           <section className="mt-14 border-t border-line pt-8">
             <h2 className="font-display text-2xl font-semibold text-ink">
-              Frequently asked questions
+              Frequently Asked Questions
             </h2>
             <dl className="mt-6 space-y-6">
               {faqItems.map((f, i) => (

@@ -309,7 +309,7 @@ export function EditorWorkspace({
                   update({ typeData: { ...draft.typeData, faqItems: next } })
                 }
                 error={gateErrors["typeData.faqItems"]}
-                title="FAQ section"
+                title="Frequently Asked Questions"
                 emptyTitle="No questions yet"
                 emptyBody="Add common reader questions, or generate them from the article with AI. Each pair also feeds FAQPage schema."
               />
