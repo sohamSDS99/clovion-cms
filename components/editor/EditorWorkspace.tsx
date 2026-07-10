@@ -158,6 +158,16 @@ export function EditorWorkspace({
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            title="Open a full-page preview (last saved version) in a new tab"
+            onClick={() =>
+              window.open(`/preview/${contentId}`, "_blank", "noopener,noreferrer")
+            }
+          >
+            Preview
+          </Button>
           <Button variant="ghost" size="sm" onClick={onOpenHistory}>
             History
           </Button>

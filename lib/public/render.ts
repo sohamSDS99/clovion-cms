@@ -20,8 +20,8 @@
 import { generateHTML } from "@tiptap/html";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
+import { SmartLink } from "@/lib/editor/link";
 import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
@@ -43,15 +43,12 @@ const EDITOR_EXTENSIONS = [
   // horizontalRule, hardBreak, history, dropcursor, gapcursor.
   StarterKit,
   Underline,
-  // Harden links: no JS schemes, safe rel, open in new tab.
-  Link.configure({
+  // Harden links: no JS schemes; SmartLink computes rel/target per-href so
+  // external links stay nofollow+_blank while internal interlinks keep _self.
+  SmartLink.configure({
     openOnClick: false,
     autolink: false,
     protocols: ["http", "https", "mailto", "tel"],
-    HTMLAttributes: {
-      rel: "noopener noreferrer nofollow",
-      target: "_blank",
-    },
   }),
   Image.configure({ inline: false }),
   Table,

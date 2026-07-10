@@ -17,10 +17,21 @@ export function FaqQuestions({
   items,
   onChange,
   error,
+  title = "Questions & answers",
+  emptyTitle = "No questions yet",
+  emptyBody = "Add the first question and answer. Each pair becomes an entry in the FAQ and the FAQPage schema.",
+  action,
 }: {
   items: FaqItem[];
   onChange: (next: FaqItem[]) => void;
   error?: string;
+  /** Heading for the section (article layouts pass "FAQ section"). */
+  title?: string;
+  /** Empty-state card heading + body copy. */
+  emptyTitle?: string;
+  emptyBody?: string;
+  /** Optional control rendered in the header (e.g. a "Generate with AI" button). */
+  action?: React.ReactNode;
 }) {
   // Track the just-added card so we can focus its question input.
   const focusIndex = useRef<number | null>(null);
@@ -62,19 +73,22 @@ export function FaqQuestions({
             id="faq-questions-heading"
             className="font-display text-lg font-semibold text-ink"
           >
-            Questions &amp; answers
+            {title}
           </h2>
           <p className="mt-0.5 text-xs text-ink-mute">
             {items.length === 0
-              ? "The list of Q&A pairs is the published FAQ content."
+              ? "Each Q&A pair becomes an entry in the FAQ and the FAQPage schema."
               : `${items.length} ${items.length === 1 ? "question" : "questions"} — drag-free reorder with the arrow controls.`}
           </p>
         </div>
-        {items.length > 0 ? (
-          <Button variant="secondary" size="sm" onClick={add}>
-            Add question
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {action}
+          {items.length > 0 ? (
+            <Button variant="secondary" size="sm" onClick={add}>
+              Add question
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {error ? (
@@ -88,11 +102,8 @@ export function FaqQuestions({
 
       {items.length === 0 ? (
         <Card className="flex flex-col items-center gap-3 border-dashed px-6 py-12 text-center">
-          <p className="font-display text-base text-ink">No questions yet</p>
-          <p className="max-w-sm text-sm text-ink-mute">
-            Add the first question and answer. Each pair becomes an entry in the
-            published FAQ and the FAQPage schema.
-          </p>
+          <p className="font-display text-base text-ink">{emptyTitle}</p>
+          <p className="max-w-sm text-sm text-ink-mute">{emptyBody}</p>
           <Button variant="primary" size="md" onClick={add}>
             Add question
           </Button>

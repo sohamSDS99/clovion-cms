@@ -14,7 +14,6 @@
 
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
@@ -28,6 +27,7 @@ import TextStyle from "@tiptap/extension-text-style";
 import { Color } from "@tiptap/extension-color";
 import type { Extensions } from "@tiptap/react";
 import { Embed } from "./embed";
+import { SmartLink } from "./link";
 import { FontFamily, FontSize } from "./fontExtensions";
 
 /** An empty Tiptap document (matches the server's EMPTY_DOC). */
@@ -50,14 +50,13 @@ export const editorExtensions: Extensions = [
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   TaskList,
   TaskItem.configure({ nested: true }),
-  Link.configure({
+  // SmartLink computes rel/target per-href (internal links keep _self and drop
+  // nofollow) instead of forcing every link external — so pasted interlinks
+  // survive intact. See lib/editor/link.ts.
+  SmartLink.configure({
     openOnClick: false,
     autolink: true,
     protocols: ["http", "https", "mailto", "tel"],
-    HTMLAttributes: {
-      rel: "noopener noreferrer nofollow",
-      target: "_blank",
-    },
   }),
   Image.configure({
     inline: false,
