@@ -23,6 +23,53 @@ function publishedWhere(extra?: Prisma.ContentItemWhereInput): Prisma.ContentIte
   return { status: "PUBLISHED", deletedAt: null, ...extra };
 }
 
+// ── Avatar resolution ────────────────────────────────────────────────────────
+// An author's avatar is stored as `AuthorProfile.avatarAssetId` — an FK-less UUID
+// (repo convention: generic asset/creator columns are app-enforced, not DB FKs).
+// Prisma therefore cannot `include` it, so the public layer resolves it here and
+// threads the URL into the (pure) serializers.
+
+type VariantUrlMap = Partial<Record<"thumb" | "md" | "lg", string>>;
+
+/** Prefer the small `thumb` variant for an 80×80 avatar; fall back to original. */
+function pickAvatarUrl(asset: { url: string; variants: unknown }): string {
+  const variants = (asset.variants ?? {}) as VariantUrlMap;
+  return variants.thumb ?? asset.url;
+}
+
+/** Batch-resolve avatar asset ids → public URLs (skips missing/soft-deleted). */
+export async function resolveAvatarUrls(
+  assetIds: Array<string | null | undefined>,
+): Promise<Map<string, string>> {
+  const ids = [...new Set(assetIds.filter((x): x is string => Boolean(x)))];
+  if (ids.length === 0) return new Map();
+  const assets = await prisma.mediaAsset.findMany({
+    where: { id: { in: ids }, deletedAt: null },
+    select: { id: true, url: true, variants: true },
+  });
+  const map = new Map<string, string>();
+  for (const a of assets) map.set(a.id, pickAvatarUrl(a));
+  return map;
+}
+
+/** Resolve a single avatar asset id → public URL, or null. */
+export async function resolveAvatarUrl(
+  assetId: string | null | undefined,
+): Promise<string | null> {
+  if (!assetId) return null;
+  const map = await resolveAvatarUrls([assetId]);
+  return map.get(assetId) ?? null;
+}
+
+/** The resolved avatar URL for a content item's author, given a resolved map. */
+export function avatarUrlFor(
+  item: ContentItemWithRelations,
+  map: Map<string, string>,
+): string | null {
+  const id = item.authorProfile?.avatarAssetId;
+  return id ? map.get(id) ?? null : null;
+}
+
 export interface ListPublishedParams {
   type?: ContentType;
   limit: number;

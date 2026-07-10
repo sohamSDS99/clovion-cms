@@ -108,3 +108,23 @@ export function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return "Something went wrong.";
 }
+
+/**
+ * Normalize a user-typed LinkedIn value into an absolute URL so it satisfies the
+ * server's strict `.url()` validation instead of 400-ing opaquely:
+ *   - already has a scheme → unchanged
+ *   - a bare handle ("john-doe" / "@john-doe") → full profile URL
+ *   - a schemeless domain ("linkedin.com/in/john") → prefixed with https://
+ * Returns "" for blank input (caller drops the key).
+ */
+export function normalizeLinkedInUrl(raw: string): string {
+  const v = raw.trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  // A schemeless linkedin.com URL only needs a scheme.
+  if (/(^|\.)linkedin\.com(\/|$)/i.test(v)) return `https://${v}`;
+  // Anything else is treated as a bare handle for this LinkedIn-only field
+  // (so a dotted handle like "john.doe" becomes a real profile URL, not a
+  // bogus https://john.doe domain).
+  return `https://www.linkedin.com/in/${v.replace(/^@/, "").replace(/^\/+/, "")}`;
+}

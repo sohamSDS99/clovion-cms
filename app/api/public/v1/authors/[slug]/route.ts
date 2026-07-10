@@ -8,7 +8,13 @@
 
 import { z } from "zod";
 import { withRoute, json, parseQuery, NotFoundError } from "@/lib/api/http";
-import { getPublicAuthor, listPublishedByAuthor } from "@/lib/public/query";
+import {
+  getPublicAuthor,
+  listPublishedByAuthor,
+  resolveAvatarUrl,
+  resolveAvatarUrls,
+  avatarUrlFor,
+} from "@/lib/public/query";
 import { toPublicSummary } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
 
@@ -29,15 +35,23 @@ export const GET = withRoute(
 
     const items = await listPublishedByAuthor(author.id, 50);
 
+    // Resolve the author's own avatar plus the avatars on their content list.
+    const [authorAvatar, contentAvatars] = await Promise.all([
+      resolveAvatarUrl(author.avatarAssetId),
+      resolveAvatarUrls(items.map((it) => it.authorProfile?.avatarAssetId)),
+    ]);
+
     const res = json({
       data: {
         author: {
           displayName: author.displayName,
           slug: author.slug,
+          title: author.title ?? null,
+          avatar: authorAvatar,
           bio: author.bio ?? null,
           socials: (author.socialLinks ?? {}) as Record<string, string>,
         },
-        content: items.map(toPublicSummary),
+        content: items.map((it) => toPublicSummary(it, avatarUrlFor(it, contentAvatars))),
       },
     });
     return withCache(res);

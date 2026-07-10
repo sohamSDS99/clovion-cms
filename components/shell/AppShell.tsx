@@ -127,9 +127,14 @@ function AppShellInner({
     pathname === "/settings" || pathname.startsWith("/settings/");
 
   const showKnowledgeBase = user.role === "ADMIN" || user.role === "EDITOR";
+  // The Author Profiles oversight screen is Admin-only (its API requires
+  // edit_others_author_profile), so don't advertise it to other roles.
+  const showAuthorProfiles = user.role === "ADMIN";
   const kbActive =
     pathname === "/knowledge-base" || pathname.startsWith("/knowledge-base/");
   const mediaActive = pathname === "/media" || pathname.startsWith("/media/");
+  const authorProfilesActive =
+    pathname === "/author-profiles" || pathname.startsWith("/author-profiles/");
   const dashboardActive = pathname === "/";
 
   return (
@@ -218,6 +223,17 @@ function AppShellInner({
           >
             Media Library
           </NavLink>
+
+          {showAuthorProfiles ? (
+            <NavLink
+              href="/author-profiles"
+              active={authorProfilesActive}
+              icon={<IconUsers />}
+              onNavigate={closeMobile}
+            >
+              Author Profiles
+            </NavLink>
+          ) : null}
 
           <NavLink
             href="/settings"
@@ -394,6 +410,9 @@ function IconResource() {
 }
 function IconImage() {
   return <Svg><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9.5" r="1.5" /><path d="m21 16-5-5L5 20" /></Svg>;
+}
+function IconUsers() {
+  return <Svg><circle cx="9" cy="8" r="3.2" /><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" /><path d="M16 4.5a3.2 3.2 0 0 1 0 7" /><path d="M21 20v-1a5 5 0 0 0-4-4.9" /></Svg>;
 }
 function IconBook() {
   return <Svg><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 0-3 3z" /><path d="M18 7v13" /></Svg>;

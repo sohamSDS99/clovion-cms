@@ -8,7 +8,7 @@ import { Input, Textarea, Label } from "@/components/ui/Field";
 import { Loading, InlineError, EmptyState } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { MediaPicker } from "@/components/media/MediaPicker";
-import { api, errorMessage } from "@/lib/ui/client";
+import { api, errorMessage, normalizeLinkedInUrl } from "@/lib/ui/client";
 import type { AuthorProfile } from "./types";
 import type { MediaAsset } from "@/lib/ui/types";
 
@@ -48,6 +48,8 @@ export function ProfileEditor() {
 
   const [displayName, setDisplayName] = useState("");
   const [slug, setSlug] = useState("");
+  const [title, setTitle] = useState("");
+  const [linkedin, setLinkedin] = useState("");
   const [bio, setBio] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [avatarAssetId, setAvatarAssetId] = useState<string | null>(null);
@@ -63,10 +65,16 @@ export function ProfileEditor() {
         if (r.profile) {
           setDisplayName(r.profile.displayName);
           setSlug(r.profile.slug);
+          setTitle(r.profile.title ?? "");
           setBio(r.profile.bio ?? "");
           setIsPublic(r.profile.isPublic);
           setAvatarAssetId(r.profile.avatarAssetId);
-          setSocial(toRows(r.profile.socialLinks ?? {}));
+          // LinkedIn gets a dedicated field; keep any other platforms in the
+          // generic rows so nothing is lost.
+          const links = { ...(r.profile.socialLinks ?? {}) };
+          setLinkedin(links.linkedin ?? "");
+          delete links.linkedin;
+          setSocial(toRows(links));
         }
       })
       .catch((e) => setError(errorMessage(e)));
@@ -76,13 +84,21 @@ export function ProfileEditor() {
     e.preventDefault();
     setSaving(true);
     try {
+      const link = normalizeLinkedInUrl(linkedin);
       const updated = await api.patch<AuthorProfile>("/api/profile", {
         displayName: displayName.trim(),
         slug: slug.trim(),
-        bio: bio.trim(),
+        // Cleared → null (not ""), consistent with how profiles are created.
+        title: title.trim() || null,
+        bio: bio.trim() || null,
         isPublic,
         avatarAssetId,
-        socialLinks: fromRows(social),
+        // Merge the dedicated LinkedIn field (normalized to an absolute URL) into
+        // the flexible socials map; a blank LinkedIn simply drops the key.
+        socialLinks: {
+          ...fromRows(social),
+          ...(link ? { linkedin: link } : {}),
+        },
       });
       setProfile(updated);
       toast.success("Profile saved.");
@@ -200,13 +216,34 @@ export function ProfileEditor() {
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
               />
-              <Textarea
-                label="Bio"
-                rows={4}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="A short bio shown on your public byline."
+              <Input
+                label="Job title"
+                hint="Shown under your name on the byline"
+                placeholder="e.g. Workplace Safety Expert"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
+              <Input
+                label="LinkedIn URL"
+                type="url"
+                placeholder="https://www.linkedin.com/in/your-handle/"
+                value={linkedin}
+                onChange={(e) => setLinkedin(e.target.value)}
+              />
+              <div>
+                <Textarea
+                  label="Bio"
+                  hint="Max 500 characters"
+                  rows={4}
+                  maxLength={500}
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="A short bio shown on your public byline."
+                />
+                <p className="mt-1 text-right text-xs text-ink-faint">
+                  {bio.trim().length}/500
+                </p>
+              </div>
             </div>
           </Card>
 
