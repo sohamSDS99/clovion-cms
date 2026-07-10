@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Loading, InlineError, EmptyState } from "@/components/ui/Feedback";
+import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/ui/cn";
 import { InviteDialog } from "@/components/users/InviteDialog";
 import { AuthorProfileCreateModal } from "./AuthorProfileCreateModal";
@@ -59,8 +61,25 @@ export function AuthorProfilesManager() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AuthorProfileAdminRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AuthorProfileAdminRow | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   // Rows whose avatar image 404'd — fall back to initials instead of a broken glyph.
   const [brokenAvatars, setBrokenAvatars] = useState<Set<string>>(new Set());
+  const toast = useToast();
+
+  async function remove(row: AuthorProfileAdminRow) {
+    setBusyId(row.id);
+    try {
+      await api.delete(`/api/author-profiles/${row.id}`);
+      setRows((prev) => (prev ? prev.filter((r) => r.id !== row.id) : prev));
+      toast.success(`Deleted "${row.displayName}".`);
+      setConfirmDelete(null);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   function load() {
     setRows(null);
@@ -274,13 +293,22 @@ export function AuthorProfilesManager() {
                               {fmtDate(r.createdAt)}
                             </td>
                             <td className="px-6 py-3.5 text-right">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => setEditing(r)}
-                              >
-                                Edit
-                              </Button>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => setEditing(r)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setConfirmDelete(r)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -316,6 +344,35 @@ export function AuthorProfilesManager() {
         onClose={() => setCreateOpen(false)}
         onCreated={() => load()}
       />
+
+      <Modal
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete author profile"
+        footer={
+          <>
+            <Button variant="ghost" type="button" onClick={() => setConfirmDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={confirmDelete ? busyId === confirmDelete.id : false}
+              onClick={() => confirmDelete && remove(confirmDelete)}
+            >
+              Delete profile
+            </Button>
+          </>
+        }
+      >
+        {confirmDelete ? (
+          <p className="text-sm text-ink-soft">
+            Permanently delete{" "}
+            <span className="font-medium text-ink">{confirmDelete.displayName}</span>? This
+            can&apos;t be undone. A profile used as the author on existing content can&apos;t be
+            deleted until those items are reassigned.
+          </p>
+        ) : null}
+      </Modal>
 
       <InviteDialog
         open={inviteOpen}
