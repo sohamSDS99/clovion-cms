@@ -9,37 +9,27 @@ import { Button } from "@/components/ui/Button";
 import { Loading, InlineError } from "@/components/ui/Feedback";
 import { api, errorMessage } from "@/lib/ui/client";
 import {
-  contentTypeLabel,
   contentTypePlural,
-  CONTENT_TYPE_ORDER,
   formatDateTime,
   statusBadge,
 } from "@/lib/ui/format";
-import type { ContentItem, ContentType } from "@/lib/ui/types";
+import type { ContentItem } from "@/lib/ui/types";
 
 interface ListResponse {
   items: ContentItem[];
   nextCursor: string | null;
 }
 
-interface LeadFormsResponse {
-  forms: { _count?: { submissions?: number } }[];
-}
-
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-/** Content types offered in the "Quick create" grid (matches the marketing IA). */
-const QUICK_CREATE: ContentType[] = ["BLOG", "RESEARCH", "NEWS", "RESOURCE", "FAQ"];
 
 /**
  * Dashboard — workspace overview. Top KPI strip (published this week / total
- * published / drafts / scheduled), a Modules + Quick-create rail, and a recent
- * activity table. Counts are derived client-side from a generous recent window
- * (the list API has no count endpoint).
+ * published / drafts / scheduled) plus a recent activity table. Counts are
+ * derived client-side from a generous recent window (the list API has no count
+ * endpoint).
  */
 export function Dashboard() {
   const [items, setItems] = useState<ContentItem[] | null>(null);
-  const [downloads, setDownloads] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,23 +39,6 @@ export function Dashboard() {
       .then((r) => setItems(r.items))
       .catch((e) => {
         if (!ac.signal.aborted) setError(errorMessage(e));
-      });
-    return () => ac.abort();
-  }, []);
-
-  // Resource downloads = lead-form submissions. Admin/Editor only; silently
-  // stays null (rendered as "—") for roles without access or on any error.
-  useEffect(() => {
-    const ac = new AbortController();
-    api
-      .get<LeadFormsResponse>("/api/leadforms", undefined, ac.signal)
-      .then((r) =>
-        setDownloads(
-          r.forms.reduce((sum, f) => sum + (f._count?.submissions ?? 0), 0)
-        )
-      )
-      .catch(() => {
-        /* not authorized / unavailable — leave as null */
       });
     return () => ac.abort();
   }, []);
@@ -82,9 +55,6 @@ export function Dashboard() {
   ).length;
   const draftsInProgress = all.filter((i) => i.status === "DRAFT").length;
   const scheduled = all.filter((i) => i.status === "SCHEDULED").length;
-
-  const countByType = (type: ContentType) =>
-    all.filter((i) => i.type === type).length;
 
   const recent = [...all]
     .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
@@ -139,83 +109,12 @@ export function Dashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              {/* Left rail — Modules + Quick create */}
-              <div className="space-y-6 lg:col-span-2">
-                <section>
-                  <h2 className="mb-3 text-base font-semibold text-ink">
-                    Modules
-                  </h2>
-                  <div className="space-y-3">
-                    {CONTENT_TYPE_ORDER.map((type) => (
-                      <Link
-                        key={type}
-                        href={`/content?type=${type}`}
-                        className="group flex items-center gap-3 rounded-xl border border-line bg-paper-raised p-4 shadow-card transition-colors hover:border-line-strong"
-                      >
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-paper-sunken text-ink-soft">
-                          {typeIcon(type)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-ink">
-                            {contentTypePlural(type)}
-                          </p>
-                          <p className="text-xs text-ink-mute">
-                            {countByType(type)}{" "}
-                            {countByType(type) === 1 ? "item" : "items"}
-                          </p>
-                        </div>
-                        <span className="text-ink-faint transition-colors group-hover:text-ink-soft">
-                          <IconArrowUpRight />
-                        </span>
-                      </Link>
-                    ))}
-
-                    {/* Resource downloads */}
-                    <div className="flex items-center gap-3 rounded-xl border border-line bg-paper-raised p-4 shadow-card">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-paper-sunken text-ink-soft">
-                        <IconDownload />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-ink">
-                          Resource downloads
-                        </p>
-                        <p className="text-xs text-ink-mute">
-                          all-time, across published resources
-                        </p>
-                      </div>
-                      <span className="text-lg font-semibold tabular-nums text-ink">
-                        {downloads ?? "—"}
-                      </span>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <h2 className="mb-3 text-base font-semibold text-ink">
-                    Quick create
-                  </h2>
-                  <div className="grid grid-cols-2 gap-3">
-                    {QUICK_CREATE.map((type) => (
-                      <Link
-                        key={type}
-                        href={`/content/new?type=${type}`}
-                        className="flex items-center gap-2.5 rounded-xl border border-line bg-paper-raised px-4 py-3 text-sm font-medium text-ink shadow-card transition-colors hover:border-line-strong hover:bg-paper-sunken"
-                      >
-                        <span className="text-ink-soft">{typeIcon(type)}</span>
-                        {quickLabel(type)}
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              </div>
-
-              {/* Right — Recent activity */}
-              <section className="lg:col-span-3">
-                <h2 className="mb-3 text-base font-semibold text-ink">
-                  Recent activity
-                </h2>
-                <Card className="overflow-hidden">
+            {/* Recent activity */}
+            <section>
+              <h2 className="mb-3 text-base font-semibold text-ink">
+                Recent activity
+              </h2>
+              <Card className="overflow-hidden">
                   {recent.length === 0 ? (
                     <p className="px-5 py-12 text-center text-sm text-ink-mute">
                       No content yet. Create your first item to get started.
@@ -267,7 +166,6 @@ export function Dashboard() {
                   )}
                 </Card>
               </section>
-            </div>
           </>
         )}
       </PageBody>
@@ -311,39 +209,6 @@ function StatCard({
   );
 }
 
-/* ── Helpers ────────────────────────────────────────────────────────────── */
-function quickLabel(type: ContentType): string {
-  switch (type) {
-    case "BLOG":
-      return "Blog Post";
-    case "NEWS":
-      return "News Article";
-    case "RESOURCE":
-      return "Resource";
-    case "FAQ":
-      return "FAQ Article";
-    default:
-      return contentTypeLabel(type);
-  }
-}
-
-function typeIcon(type: ContentType): React.ReactNode {
-  switch (type) {
-    case "BLOG":
-      return <IconDoc />;
-    case "WEBINAR":
-      return <IconVideo />;
-    case "NEWS":
-      return <IconNews />;
-    case "RESOURCE":
-      return <IconDownload />;
-    case "FAQ":
-      return <IconHelp />;
-    default:
-      return <IconDoc />;
-  }
-}
-
 /* ── Icons ──────────────────────────────────────────────────────────────── */
 function Svg(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -378,28 +243,6 @@ function IconPencil() {
 }
 function IconCalendar() {
   return <Svg><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M8 3v4M16 3v4" /></Svg>;
-}
-function IconDoc() {
-  return <Svg><path d="M6 2h8l4 4v16H6z" /><path d="M14 2v4h4" /><path d="M9 13h6M9 17h6" /></Svg>;
-}
-function IconVideo() {
-  return <Svg><rect x="2" y="5" width="14" height="14" rx="2" /><path d="m16 9 6-3v12l-6-3z" /></Svg>;
-}
-function IconNews() {
-  return <Svg><path d="M4 4h13v16H6a2 2 0 0 1-2-2z" /><path d="M17 8h3v10a2 2 0 0 1-2 2" /><path d="M8 8h5M8 12h5M8 16h5" /></Svg>;
-}
-function IconHelp() {
-  return <Svg><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.7" /><path d="M12 17h.01" /></Svg>;
-}
-function IconDownload() {
-  return <Svg><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /><path d="M12 3v11" /><path d="m8 10 4 4 4-4" /></Svg>;
-}
-function IconArrowUpRight() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 17 17 7M8 7h9v9" />
-    </svg>
-  );
 }
 function IconDot() {
   return (
