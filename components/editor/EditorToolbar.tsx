@@ -67,10 +67,10 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
           </Btn>
           <Divider />
 
-          {/* Labelled dropdowns so it's clear which controls block style,
-              font family, and font size. The block-style menu replaces the
-              old H1/H2/H3 buttons and exposes all six heading levels. */}
-          <ToolbarField label="Style"><BlockSelect editor={editor} /></ToolbarField>
+          {/* Labelled dropdowns so it's clear which controls headings, font
+              family, and font size. The heading menu replaces the old H1/H2/H3
+              buttons and exposes all six levels. */}
+          <ToolbarField label="Headings"><BlockSelect editor={editor} /></ToolbarField>
           <ToolbarField label="Font"><FontFamilySelect editor={editor} /></ToolbarField>
           <ToolbarField label="Size"><FontSizeSelect editor={editor} /></ToolbarField>
           <Divider />
@@ -270,14 +270,22 @@ export function EditorToolbar({ editor }: { editor: Editor | null }) {
 }
 
 /* ── Shared dropdown styling + labelled wrapper (UI consistency) ─────────── */
+// Borderless: the ToolbarField box below provides the frame, so the whole
+// control (faint title + value) reads as one tidy boxed unit.
 const SELECT_CLASS =
-  "h-8 cursor-pointer rounded-sm border border-line bg-transparent px-2 text-sm text-ink-soft hover:bg-paper-sunken focus:outline-none focus:ring-2 focus:ring-accent/25";
+  "h-7 cursor-pointer rounded-sm bg-transparent pl-1 pr-0.5 text-sm text-ink-soft focus:outline-none";
 
-/** A toolbar dropdown with a small leading label so its purpose is obvious. */
+/**
+ * A toolbar dropdown wrapped in a single bordered box with a low-opacity title
+ * *inside* the box (e.g. "HEADINGS Paragraph ▾"), instead of a separate label
+ * floating beside it — keeps the toolbar clean and self-explanatory.
+ */
 function ToolbarField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex items-center gap-1 whitespace-nowrap text-xs font-medium text-ink-mute">
-      {label}
+    <label className="flex h-8 items-center gap-1 rounded-md border border-line bg-paper pl-2 pr-0.5 transition-colors hover:bg-paper-sunken focus-within:ring-2 focus-within:ring-accent/25">
+      <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-wide text-ink-faint/70">
+        {label}
+      </span>
       {children}
     </label>
   );

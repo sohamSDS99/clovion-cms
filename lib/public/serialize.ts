@@ -127,13 +127,23 @@ function defaultCanonical(type: ContentItem["type"], slug: string): string | und
   return `${base}/${type.toLowerCase()}/${slug}`;
 }
 
-function toSeo(item: ContentItem): PublicSeo {
+/**
+ * `ogImageUrl` is the OG share image resolved from `seo.ogImageAssetId` by the
+ * query layer (FK-less asset ref, can't be `include`d). When unset it falls back
+ * to any literal `seo.ogImage` URL, then to the cover image — so a shared page
+ * always has a social card image.
+ */
+function toSeo(
+  item: ContentItem,
+  ogImageUrl?: string | null,
+  coverFallback?: string | null,
+): PublicSeo {
   const raw = (item.seo ?? {}) as RawSeo;
   return {
     metaTitle: raw.metaTitle,
     metaDescription: raw.metaDescription,
     canonicalUrl: raw.canonicalUrl ?? defaultCanonical(item.type, item.slug),
-    ogImage: raw.ogImage,
+    ogImage: ogImageUrl ?? raw.ogImage ?? coverFallback ?? undefined,
     noIndex: raw.noIndex ?? false,
   };
 }
@@ -284,9 +294,10 @@ export function toPublicContent(
   item: ContentItemWithRelations,
   avatarUrl?: string | null,
   downloadUrl?: string | null,
+  ogImageUrl?: string | null,
 ): PublicContent {
-  const seo = toSeo(item);
   const coverImageUrl = item.coverAsset?.url ?? null;
+  const seo = toSeo(item, ogImageUrl, coverImageUrl);
   const author = toAuthor(item.authorProfile, avatarUrl ?? null);
 
   const bodyHtml =
@@ -321,8 +332,10 @@ export function toPublicSummary(
   item: ContentItemWithRelations,
   avatarUrl?: string | null,
 ): PublicContentSummary {
-  const seo = toSeo(item);
   const coverImageUrl = item.coverAsset?.url ?? null;
+  // List cards resolve OG lazily to the cover image; the detail endpoint resolves
+  // the explicit ogImageAssetId. (og:image matters most on the shared page.)
+  const seo = toSeo(item, null, coverImageUrl);
   const author = toAuthor(item.authorProfile, avatarUrl ?? null);
 
   return {

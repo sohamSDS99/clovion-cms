@@ -16,6 +16,7 @@ import {
   getPublishedGatedBySlug,
   resolveAvatarUrl,
   resolveResourceDownloadUrl,
+  resolveOgImageUrl,
 } from "@/lib/public/query";
 import { toPublicContent } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
@@ -42,7 +43,8 @@ export const GET = withRoute(
     // Shared serializer already enforces "no PDF URL for gated resources".
     const avatarUrl = await resolveAvatarUrl(item.authorProfile?.avatarAssetId);
     const downloadUrl = await resolveResourceDownloadUrl(item);
-    const payload = toPublicContent(item, avatarUrl, downloadUrl);
+    const ogImageUrl = await resolveOgImageUrl(item);
+    const payload = toPublicContent(item, avatarUrl, downloadUrl, ogImageUrl);
 
     // When gated, attach the lead form definition (fields only) for rendering.
     const gate = readResourceGate(item.typeData);

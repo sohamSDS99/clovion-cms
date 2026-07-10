@@ -80,6 +80,27 @@ export async function resolveResourceDownloadUrl(
   return asset?.url ?? null;
 }
 
+/**
+ * Resolve an item's Open Graph share image (`seo.ogImageAssetId`) to its public
+ * URL, preferring the large variant for social cards. Returns null when unset or
+ * the asset is missing/soft-deleted (the serializer then falls back to cover).
+ * Like the avatar, this is an FK-less asset ref so it can't be `include`d.
+ */
+export async function resolveOgImageUrl(
+  item: ContentItemWithRelations,
+): Promise<string | null> {
+  const seo = (item.seo ?? {}) as { ogImageAssetId?: unknown };
+  const id = typeof seo.ogImageAssetId === "string" ? seo.ogImageAssetId : null;
+  if (!id) return null;
+  const asset = await prisma.mediaAsset.findFirst({
+    where: { id, deletedAt: null },
+    select: { url: true, variants: true },
+  });
+  if (!asset) return null;
+  const variants = (asset.variants ?? {}) as VariantUrlMap;
+  return variants.lg ?? asset.url;
+}
+
 /** The resolved avatar URL for a content item's author, given a resolved map. */
 export function avatarUrlFor(
   item: ContentItemWithRelations,

@@ -144,3 +144,36 @@ describe("cover image", () => {
     expect(out.coverImage).toBeNull();
   });
 });
+
+// OG share image: the query layer resolves seo.ogImageAssetId → URL and threads
+// it in. It wins over any literal seo.ogImage and over the cover fallback; with
+// nothing resolved, seo.ogImage falls back to the cover image so a shared page
+// always has a social card.
+describe("og share image", () => {
+  const cover = { url: "https://cdn/cover.png", variants: {}, width: 1, height: 1 };
+
+  it("uses the resolved og image URL when provided", () => {
+    const out = toPublicContent(
+      { ...item(null), coverAsset: cover } as ContentItemWithRelations,
+      null,
+      null,
+      "https://cdn/og.webp",
+    );
+    expect(out.seo.ogImage).toBe("https://cdn/og.webp");
+  });
+
+  it("falls back to the cover image when no og image is set", () => {
+    const out = toPublicContent(
+      { ...item(null), coverAsset: cover } as ContentItemWithRelations,
+      null,
+      null,
+      null,
+    );
+    expect(out.seo.ogImage).toBe("https://cdn/cover.png");
+  });
+
+  it("is undefined when neither an og image nor a cover exists", () => {
+    const out = toPublicContent(item(null), null, null, null);
+    expect(out.seo.ogImage).toBeUndefined();
+  });
+});
