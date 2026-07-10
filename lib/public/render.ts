@@ -66,6 +66,25 @@ function isTiptapDoc(value: unknown): value is TiptapDoc {
   );
 }
 
+/** True for a paragraph node with no inline content (an empty `<p></p>`). */
+function isEmptyParagraph(node: unknown): boolean {
+  if (typeof node !== "object" || node === null) return false;
+  const n = node as { type?: unknown; content?: unknown };
+  if (n.type !== "paragraph") return false;
+  return !Array.isArray(n.content) || n.content.length === 0;
+}
+
+/**
+ * Drop top-level empty paragraphs. Authors (and pasted/imported content) often
+ * leave blank paragraphs as visual spacers — `{type:"paragraph"}` with no
+ * content — which render as empty `<p></p>`. Those carry no meaning, produce
+ * messy markup, and (once real inter-paragraph spacing exists in CSS) are
+ * redundant. We only touch the top level; nested empties are rare and left as-is.
+ */
+export function stripEmptyParagraphs(content: unknown[]): unknown[] {
+  return content.filter((node) => !isEmptyParagraph(node));
+}
+
 /**
  * Render a stored Tiptap document to a sanitized HTML string.
  *
@@ -75,14 +94,19 @@ function isTiptapDoc(value: unknown): value is TiptapDoc {
  */
 export function renderTiptapToHtml(doc: unknown): string {
   if (!isTiptapDoc(doc)) return "";
-  const content = Array.isArray(doc.content) ? doc.content : [];
+  const content = stripEmptyParagraphs(
+    Array.isArray(doc.content) ? doc.content : [],
+  );
   if (content.length === 0) return "";
 
   try {
     // generateHTML only emits nodes/marks defined by EDITOR_EXTENSIONS; unknown
     // nodes are silently dropped, giving us the allow-list guarantee.
     // generateHTML expects a JSONContent doc; our validated doc is structurally compatible.
-    return generateHTML(doc as unknown as Record<string, unknown>, EDITOR_EXTENSIONS);
+    return generateHTML(
+      { ...doc, content } as unknown as Record<string, unknown>,
+      EDITOR_EXTENSIONS,
+    );
   } catch (err) {
     // Defensive: a corrupt document should yield empty HTML, not a 500.
     console.error("[public/render] failed to render Tiptap doc:", err);
