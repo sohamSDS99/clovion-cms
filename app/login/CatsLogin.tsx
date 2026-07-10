@@ -2,12 +2,12 @@
 
 /*
  * Clovion CMS login — "crunch time" split screen.
- * Left panel: four furious office cats hammering MacBooks in an emerald room.
- * We see the backs of their laptop lids (glowing logo, screen light spilling
- * around the edges) and their paws slamming the keys behind the lid. Eyes
- * track the cursor; hover a cat and it rears up and genuinely swings at your
- * pointer; at random one cat throws an overhead haymaker at its neighbour or
- * just screams at its screen; reveal the password and all four lock onto it.
+ * Left panel: four fluffy flat-illustration office cats (think grumpy
+ * stock-vector cat behind an indigo laptop) hammering their keyboards on a tan
+ * desk. Hover one and it gets visibly angry. Three of them occasionally smack
+ * each other. The grey senior never does — but every so often he hits his
+ * limit, goes full super saiyan (gold fur, spiked hair, flame aura, rage
+ * typing) and the rest of the team quietly gets back to work until he cools.
  *
  * The auth itself is unchanged — the <form> posts to the NextAuth credentials
  * server action passed in as `action`. All the theatrics are client-only garnish.
@@ -20,130 +20,69 @@ import Image from "next/image";
 /* ------------------------------------------------------------- cat specs -- */
 
 type CatSpec = {
-  fur: { body: string; belly: string; ear: string; brow: string };
-  iris: string;
-  whisker: string;
-  claw: string;
-  stripes?: boolean; // forehead tabby stripes
-  hoodie?: string; // hood + torso colour (hood up, ears become bumps)
-  shades?: boolean; // sunglasses; slide down to peek at the password
-  glasses?: boolean; // reading glasses low on the nose
+  body: string; // fluff colour
+  ear: string; // inner-ear pink
+  stripe?: string; // tabby stripes
+  hoodie?: boolean; // black hood up (ears become bumps)
+  bow?: boolean; // girl: bow + lashes + blush
   airpods?: string; // AirPods Max cup colour
-  girl?: boolean; // lashes + bow + blush
+  glasses?: boolean; // round reading glasses
   mug?: boolean; // coffee on the desk
 };
 
 const CATS: CatSpec[] = [
-  {
-    // the hacker: hood up, shades on
-    fur: { body: "#3d3f47", belly: "#565962", ear: "#e79aa8", brow: "#0d0d10" },
-    iris: "#8fd0a8",
-    whisker: "#ffffff66",
-    claw: "#f2f2ee",
-    hoodie: "#37855f",
-    shades: true,
-  },
-  {
-    // the girl: bow, lashes, rose AirPods Max
-    fur: { body: "#e9dfca", belly: "#f6efe0", ear: "#ec9fb0", brow: "#c9bc9e" },
-    iris: "#6b9bd1",
-    whisker: "#14141466",
-    claw: "#4a4a44",
-    airpods: "#f0b6c3",
-    girl: true,
-  },
-  {
-    // the ginger: tabby, AirPods Max, permanently furious
-    fur: { body: "#dd8637", belly: "#eec39a", ear: "#e79aa8", brow: "#a75f22" },
-    iris: "#3f7d54",
-    whisker: "#14141466",
-    claw: "#5a3517",
-    airpods: "#3c5f52",
-    stripes: true,
-  },
-  {
-    // the senior: reading glasses, coffee, grey tabby
-    fur: { body: "#8f99a2", belly: "#c4ccd2", ear: "#e39aa6", brow: "#5f676e" },
-    iris: "#d9a441",
-    whisker: "#14141455",
-    claw: "#3d444a",
-    glasses: true,
-    stripes: true,
-    mug: true,
-  },
+  { body: "#f3ead8", ear: "#eda3b2", hoodie: true }, // the hacker, hood up
+  { body: "#f6efdf", ear: "#eda3b2", bow: true }, // the girl
+  { body: "#e59a52", ear: "#eda3b2", stripe: "#b9722e", airpods: "#3c5f52" }, // the ginger
+  { body: "#a9b1b9", ear: "#e39aa6", stripe: "#7d858d", glasses: true, mug: true }, // the senior
 ];
+
+const SENIOR = 3;
+
+/* ------------------------------------------------------ face expressions -- */
+
+type Expr =
+  | "work" // flat line eyes, small frown
+  | "angry" // hovered: >_< eyes, snarl, anger mark
+  | "shout" // screaming at the screen
+  | "recoil" // just got smacked: x_x
+  | "staring" // reading your password: wide round eyes
+  | "cowed" // the senior is glowing: dot eyes, sweat, worried squiggle
+  | "saiyan"; // the senior himself
 
 /* ---------------------------------------------------------------- one cat -- */
 
 interface CatProps {
   spec: CatSpec;
-  mouseX: number;
-  mouseY: number;
-  staring: boolean; // reading your password
-  swat: boolean; // rearing up + swinging at your cursor (hover)
-  swatDir: 1 | -1; // which side the cursor is on
-  shouting: boolean; // screaming at the screen
-  recoil: boolean; // just got clobbered by a neighbour
-  recoilDir: 1 | -1; // which way to snap (away from the hit)
+  expr: Expr;
   slapping: boolean; // throwing the haymaker right now
-  slapDir: 1 | -1; // toward which neighbour (−1 left, +1 right)
-  reduced: boolean; // prefers-reduced-motion
+  slapDir: 1 | -1;
+  recoilDir: 1 | -1;
+  reduced: boolean;
 }
 
-function Cat({
-  spec,
-  mouseX,
-  mouseY,
-  staring,
-  swat,
-  swatDir,
-  shouting,
-  recoil,
-  recoilDir,
-  slapping,
-  slapDir,
-  reduced,
-}: CatProps) {
-  const headRef = useRef<SVGPathElement>(null);
-  const { fur } = spec;
-  const aggro = swat || slapping; // fangs out, ears pinned
+// One fluffy silhouette, reused for the flame aura scaling trick.
+const FLAME =
+  "M85 -12 C68 8 50 16 56 40 C38 34 32 54 42 70 C24 68 20 90 32 104 C16 110 18 132 32 142 C20 152 26 174 42 180 C36 194 46 204 58 204 L112 204 C124 204 134 194 128 180 C144 174 150 152 138 142 C152 132 154 110 138 104 C150 90 146 68 128 70 C138 54 132 34 114 40 C120 16 102 8 85 -12 Z";
 
-  // Pupil offset in SVG units — point the slits at the cursor.
-  let ex = 0;
-  let ey = 0;
-  let dilate = 1; // >1 = big alarmed pupils
-  if (staring) {
-    ex = 3;
-    ey = 2.8;
-    dilate = 2.1;
-  } else if (recoil) {
-    ex = recoilDir * -3; // eyes thrown toward the blow
-    ey = -1;
-    dilate = 2.1;
-  } else if (!reduced && headRef.current) {
-    const r = headRef.current.getBoundingClientRect();
-    const dx = mouseX - (r.left + r.width / 2);
-    const dy = mouseY - (r.top + r.height / 2);
-    const a = Math.atan2(dy, dx);
-    const mag = Math.min(Math.hypot(dx, dy) / 40, swat ? 4.2 : 3.2);
-    ex = Math.cos(a) * mag;
-    ey = Math.sin(a) * mag;
-  }
+function Cat({ spec, expr, slapping, slapDir, recoilDir, reduced }: CatProps) {
+  const saiyan = expr === "saiyan";
+  const fur = saiyan ? "#ffd23f" : spec.body;
+  const line = "#141414";
+  const reachX = slapDir > 0 ? 118 : 52;
 
   const rootClass = [
     "cat-root",
     reduced ? "" : "cat-live",
-    recoil ? "cat-recoil" : "",
+    expr === "recoil" ? "cat-recoil" : "",
     slapping ? "cat-lean" : "",
-    swat && !reduced ? "cat-lunge" : "",
-    shouting ? "cat-shout" : "",
-    aggro ? "cat-aggro" : "",
+    expr === "angry" ? "cat-bristle" : "",
+    expr === "cowed" ? "cat-cowed" : "",
+    saiyan ? "cat-saiyan" : "",
+    expr === "shout" ? "cat-shout" : "",
   ]
     .filter(Boolean)
     .join(" ");
-
-  // Haymaker arm: anchored at the shoulder on the victim's side.
-  const reachX = slapDir > 0 ? 122 : 48;
 
   return (
     <svg
@@ -151,321 +90,321 @@ function Cat({
       className={rootClass}
       style={
         {
-          "--swat-dir": swatDir,
           "--slap-dir": slapDir,
           "--recoil-dir": recoilDir,
         } as React.CSSProperties
       }
       role="presentation"
     >
-      {/* lashing tail */}
-      <path
-        className="cat-tail"
-        d="M136 198 Q170 188 167 144 Q165 116 146 118 Q161 127 157 150 Q152 182 130 188 Z"
-        fill={fur.body}
-      />
+      {/* super saiyan flame aura — outer / mid / core, like the poster */}
+      {saiyan && (
+        <g className="cat-flame">
+          <path d={FLAME} fill="#f4711d" />
+          <g transform="translate(85,100) scale(0.74) translate(-85,-100)">
+            <path d={FLAME} fill="#ffb636" />
+          </g>
+          <g transform="translate(85,120) scale(0.46) translate(-85,-120)">
+            <path d={FLAME} fill="#ffe27a" />
+          </g>
+        </g>
+      )}
 
-      {/* torso behind the laptop (hoodie fabric if hood is up) */}
-      <path d="M30 206 Q30 96 85 92 Q140 96 140 206 Z" fill={spec.hoodie ?? fur.body} />
+      {/* ears (hood bumps instead when the hood is up) */}
       {spec.hoodie ? (
         <g>
-          {/* drawstrings on the visible sliver of chest */}
-          <g stroke="#e7f0ea" strokeWidth="2" strokeLinecap="round">
-            <line x1="74" y1="106" x2="70" y2="122" />
-            <line x1="96" y1="106" x2="100" y2="122" />
-          </g>
-          <circle cx="70" cy="124" r="2" fill="#e7f0ea" />
-          <circle cx="100" cy="124" r="2" fill="#e7f0ea" />
+          <circle cx="58" cy="22" r="10" fill="#17181c" />
+          <circle cx="112" cy="22" r="10" fill="#17181c" />
         </g>
-      ) : (
-        <ellipse cx="85" cy="112" rx="26" ry="18" fill={fur.belly} />
+      ) : saiyan ? null : (
+        <g>
+          <path d="M52 40 L44 6 L78 28 Z" fill={fur} />
+          <path d="M118 40 L126 6 L92 28 Z" fill={fur} />
+          <path d="M55 33 L50 13 L70 26 Z" fill={spec.ear} />
+          <path d="M115 33 L120 13 L100 26 Z" fill={spec.ear} />
+        </g>
       )}
-      {/* screen light spilling onto the chest */}
-      <ellipse cx="85" cy="108" rx="34" ry="14" fill="#d8f0e2" opacity="0.1" />
 
-      {/* typing arms — behind the lid, paws slamming down onto the keys */}
-      <g className="cat-arm cat-arm--l">
-        <line x1="46" y1="130" x2="60" y2="102" stroke={fur.body} strokeWidth="13" strokeLinecap="round" />
-        <ellipse cx="60" cy="100" rx="9" ry="8" fill={fur.body} />
-        {aggro && (
-          <g stroke={spec.claw} strokeWidth="2" strokeLinecap="round">
-            <line x1="54" y1="93" x2="52" y2="87" />
-            <line x1="60" y1="91" x2="60" y2="85" />
-            <line x1="66" y1="93" x2="68" y2="87" />
-          </g>
-        )}
-      </g>
-      <g className="cat-arm cat-arm--r">
-        <line x1="124" y1="130" x2="110" y2="102" stroke={fur.body} strokeWidth="13" strokeLinecap="round" />
-        <ellipse cx="110" cy="100" rx="9" ry="8" fill={fur.body} />
-        {aggro && (
-          <g stroke={spec.claw} strokeWidth="2" strokeLinecap="round">
-            <line x1="104" y1="93" x2="102" y2="87" />
-            <line x1="110" y1="91" x2="110" y2="85" />
-            <line x1="116" y1="93" x2="118" y2="87" />
-          </g>
-        )}
-      </g>
-
-      {/* -------- MacBook, back of the lid facing us -------- */}
-      <g className="cat-laptop">
-        {/* screen glow leaking around the lid */}
-        <rect x="26" y="106" width="118" height="100" rx="10" className="cat-glow" fill="#d8f0e2" opacity="0.07" />
-        <rect x="31" y="112" width="108" height="92" rx="8" className="cat-glow" fill="#d8f0e2" opacity="0.14" />
-        {/* aluminium lid */}
+      {/* super saiyan hair: a spiked gold crown instead of ears */}
+      {saiyan && (
         <path
-          d="M42 118 Q38 118 37.6 122 L33.2 196 Q33 200 37 200 L133 200 Q137 200 136.8 196 L132.4 122 Q132 118 128 118 Z"
-          fill="#d4d8dd"
+          d="M44 44 L38 10 L58 28 L64 -4 L78 24 L85 -12 L92 24 L106 -4 L112 28 L132 10 L126 44 Z"
+          fill="#ffd23f"
         />
-        <path d="M128 118 Q132 118 132.4 122 L136.8 196 Q137 200 133 200 L124 200 L118 118 Z" fill="#c2c7cd" />
-        {/* glowing paw logo */}
-        <g>
-          <ellipse cx="85" cy="162" rx="12" ry="10" fill="#ffffff" opacity="0.18" />
-          <ellipse cx="85" cy="164" rx="6.5" ry="5.5" fill="#ffffff" opacity="0.92" />
-          <circle cx="77" cy="155" r="2.6" fill="#ffffff" opacity="0.92" />
-          <circle cx="85" cy="152.5" r="2.6" fill="#ffffff" opacity="0.92" />
-          <circle cx="93" cy="155" r="2.6" fill="#ffffff" opacity="0.92" />
-        </g>
-        {/* keyboard base sliver + shadow */}
-        <rect x="30" y="200" width="110" height="5.5" rx="2.5" fill="#b7bdc4" />
-        <rect x="34" y="205" width="102" height="1.6" fill="#8f959c" opacity="0.6" />
-        {/* clack ticks where the paws land */}
-        <g stroke="#eef7f1" strokeWidth="2" strokeLinecap="round">
-          <line className="cat-clack cat-clack--l" x1="56" y1="114" x2="64" y2="114" />
-          <line className="cat-clack cat-clack--r" x1="106" y1="114" x2="114" y2="114" />
-        </g>
-      </g>
-      <ellipse cx="85" cy="207" rx="56" ry="2.5" fill="#000000" opacity="0.15" />
+      )}
 
-      {/* coffee mug for the senior */}
-      {spec.mug && (
+      {/* the fluffy body — one scalloped blob, head + torso */}
+      <path
+        d="M85 22
+           C62 22 50 38 49 56
+           C48 64 51 72 55 77
+           L45 82 L54 87
+           C42 94 35 106 34 126
+           C33 154 35 186 41 206
+           L129 206
+           C135 186 137 154 136 126
+           C135 106 128 94 116 87
+           L125 82 L115 77
+           C119 72 122 64 121 56
+           C120 38 108 22 85 22 Z"
+        fill={fur}
+      />
+
+      {/* black hood + hoodie torso over the fluff */}
+      {spec.hoodie && (
         <g>
-          <g className="cat-steam" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.5">
-            <path d="M150 172 q3 -6 0 -12" />
-            <path d="M157 174 q3 -5 0 -10" />
+          <path
+            fillRule="evenodd"
+            d="M85 12 C52 12 40 32 40 58 C40 84 52 100 85 106 C118 100 130 84 130 58 C130 32 118 12 85 12 Z
+               M85 24 C61 24 51 41 51 60 C51 80 61 94 85 99 C109 94 119 80 119 60 C119 41 109 24 85 24 Z"
+            fill="#17181c"
+          />
+          <path
+            d="M36 128 C38 108 46 100 56 94 L114 94 C124 100 132 108 134 128 C135 155 133 186 128 206 L42 206 C37 186 35 155 36 128 Z"
+            fill="#17181c"
+          />
+          <g stroke="#e8e8e2" strokeWidth="2" strokeLinecap="round">
+            <line x1="77" y1="106" x2="73" y2="120" />
+            <line x1="93" y1="106" x2="97" y2="120" />
           </g>
-          <rect x="142" y="178" width="21" height="26" rx="3" fill="#d97706" />
-          <path d="M163 183 q9 2 6 10 q-2 6 -8 5" stroke="#d97706" strokeWidth="4" fill="none" />
-          <ellipse cx="152.5" cy="179" rx="9" ry="2.4" fill="#8a4a04" />
+          <circle cx="73" cy="122" r="2" fill="#e8e8e2" />
+          <circle cx="97" cy="122" r="2" fill="#e8e8e2" />
         </g>
       )}
 
-      {/* -------- head -------- */}
-      <g className="cat-head">
-        {spec.hoodie ? (
-          <g>
-            {/* hood up: rounded bumps instead of ears, ring of fabric round the face */}
-            <circle cx="56" cy="22" r="11" fill={spec.hoodie} />
-            <circle cx="114" cy="22" r="11" fill={spec.hoodie} />
-            <path
-              d="M85 12 Q44 12 36 46 Q29 68 39 88 Q49 108 85 116 Q121 108 131 88 Q141 68 134 46 Q126 12 85 12 Z"
-              fill={spec.hoodie}
-            />
+      {/* bow for the girl */}
+      {spec.bow && !saiyan && (
+        <g transform="rotate(-12 62 16)">
+          <path d="M62 16 L46 8 L49 26 Z" fill="#e2637f" />
+          <path d="M62 16 L78 8 L75 26 Z" fill="#e2637f" />
+          <circle cx="62" cy="16" r="4.5" fill="#c94a66" />
+        </g>
+      )}
+
+      {/* AirPods Max */}
+      {spec.airpods && !saiyan && (
+        <g>
+          <path d="M52 42 Q85 8 118 42" stroke={spec.airpods} strokeWidth="7" fill="none" strokeLinecap="round" />
+          <rect x="40" y="56" width="14" height="22" rx="7" fill={spec.airpods} transform="rotate(-8 47 67)" />
+          <rect x="116" y="56" width="14" height="22" rx="7" fill={spec.airpods} transform="rotate(8 123 67)" />
+        </g>
+      )}
+
+      {/* tabby stripes */}
+      {spec.stripe && !spec.hoodie && (
+        <g stroke={saiyan ? "#e0a92c" : spec.stripe} strokeWidth="3.5" strokeLinecap="round" opacity="0.75">
+          <line x1="85" y1="26" x2="85" y2="38" />
+          <line x1="73" y1="28" x2="70" y2="39" />
+          <line x1="97" y1="28" x2="100" y2="39" />
+        </g>
+      )}
+
+      {/* ------------------------------ the face ------------------------------ */}
+      <g className="cat-face">
+        {/* brows */}
+        {expr === "cowed" ? (
+          <g stroke={line} strokeWidth="3.5" strokeLinecap="round" fill="none">
+            <path d="M58 50 Q66 54 74 52" />
+            <path d="M112 50 Q104 54 96 52" />
+          </g>
+        ) : expr === "staring" ? (
+          <g stroke={line} strokeWidth="4" strokeLinecap="round" fill="none">
+            <path d="M56 48 Q66 46 76 50" />
+            <path d="M114 48 Q104 46 94 50" />
           </g>
         ) : (
-          <g className="cat-ears">
-            <path d="M50 40 L36 2 L76 28 Z" fill={fur.body} />
-            <path d="M120 40 L134 2 L94 28 Z" fill={fur.body} />
-            <path d="M53 34 L45 11 L67 26 Z" fill={fur.ear} />
-            <path d="M117 34 L125 11 L103 26 Z" fill={fur.ear} />
+          // resting angry face; deeper when riled
+          <g stroke={line} strokeWidth="5" strokeLinecap="round" fill="none">
+            <path d={expr === "work" ? "M56 52 C64 48 72 49 78 56" : "M54 46 C64 48 72 52 79 59"} />
+            <path d={expr === "work" ? "M114 52 C106 48 98 49 92 56" : "M116 46 C106 48 98 52 91 59"} />
           </g>
         )}
-
-        {/* bow between the ears */}
-        {spec.girl && (
-          <g>
-            <path d="M74 12 L60 4 L62 20 Z" fill="#e2637f" />
-            <path d="M88 12 L102 4 L100 20 Z" fill="#e2637f" />
-            <circle cx="81" cy="12" r="4.5" fill="#c94a66" />
-          </g>
-        )}
-
-        {/* AirPods Max: band behind the head, cups at the cheeks */}
-        {spec.airpods && (
-          <path d="M50 40 Q85 6 120 40" stroke={spec.airpods} strokeWidth="7" fill="none" strokeLinecap="round" />
-        )}
-
-        {/* angular head with cheek tufts */}
-        <path
-          ref={headRef}
-          d="M85 24 Q60 24 51 40 Q43 55 47 70 L36 76 L49 81 Q54 99 85 108 Q116 99 121 81 L134 76 L123 70 Q127 55 119 40 Q110 24 85 24 Z"
-          fill={fur.body}
-        />
-        {/* screen light on the face */}
-        <ellipse cx="85" cy="92" rx="26" ry="14" fill="#d8f0e2" opacity="0.09" />
-
-        {spec.airpods && (
-          <g>
-            <rect x="38" y="56" width="15" height="24" rx="7" fill={spec.airpods} transform="rotate(-8 45 68)" />
-            <rect x="117" y="56" width="15" height="24" rx="7" fill={spec.airpods} transform="rotate(8 125 68)" />
-            <ellipse cx="45.5" cy="68" rx="4" ry="7" fill="#00000022" transform="rotate(-8 45 68)" />
-            <ellipse cx="124.5" cy="68" rx="4" ry="7" fill="#00000022" transform="rotate(8 125 68)" />
-          </g>
-        )}
-
-        {/* forehead stripes */}
-        {spec.stripes && (
-          <g stroke={fur.brow} strokeWidth="3.5" strokeLinecap="round" opacity="0.7">
-            <line x1="85" y1="27" x2="85" y2="40" />
-            <line x1="74" y1="29" x2="70" y2="41" />
-            <line x1="96" y1="29" x2="100" y2="41" />
-          </g>
-        )}
-
-        {/* muzzle */}
-        <ellipse cx="85" cy="92" rx="17" ry="12" fill={fur.belly} />
 
         {/* eyes */}
-        {shouting ? (
-          // screaming: eyes squeezed shut
-          <g stroke="#0c0c0c" strokeWidth="3" strokeLinecap="round" fill="none">
-            <path d="M58 66 Q68 60 78 66" />
-            <path d="M92 66 Q102 60 112 66" />
+        {expr === "work" || expr === "cowed" ? (
+          <g stroke={line} strokeWidth="3" strokeLinecap="round">
+            <line x1="61" y1="64" x2="73" y2="64" />
+            <line x1="97" y1="64" x2="109" y2="64" />
+          </g>
+        ) : expr === "angry" || expr === "shout" ? (
+          <g stroke={line} strokeWidth="3.5" strokeLinecap="round" fill="none">
+            <path d="M61 59 L72 64 L61 69" />
+            <path d="M109 59 L98 64 L109 69" />
+          </g>
+        ) : expr === "recoil" ? (
+          <g stroke={line} strokeWidth="3.5" strokeLinecap="round">
+            <line x1="62" y1="59" x2="72" y2="69" />
+            <line x1="72" y1="59" x2="62" y2="69" />
+            <line x1="98" y1="59" x2="108" y2="69" />
+            <line x1="108" y1="59" x2="98" y2="69" />
+          </g>
+        ) : expr === "staring" ? (
+          <g>
+            <circle cx="67" cy="64" r="7.5" fill="#ffffff" stroke={line} strokeWidth="2" />
+            <circle cx="103" cy="64" r="7.5" fill="#ffffff" stroke={line} strokeWidth="2" />
+            <circle cx="69.5" cy="66" r="3.2" fill={line} />
+            <circle cx="105.5" cy="66" r="3.2" fill={line} />
           </g>
         ) : (
+          // saiyan: glowing pupil-less eyes
           <g>
-            <ellipse cx="68" cy="66" rx="10" ry="7.5" fill="#fbfbf7" />
-            <ellipse cx="102" cy="66" rx="10" ry="7.5" fill="#fbfbf7" />
-            <g className="cat-pupils" style={{ transform: `translate(${ex}px, ${ey}px)` }}>
-              <circle cx="68" cy="66" r="5" fill={spec.iris} />
-              <circle cx="102" cy="66" r="5" fill={spec.iris} />
-              <ellipse cx="68" cy="66" rx={2.3 * dilate} ry={6.2 / dilate} fill="#0c0c0c" />
-              <ellipse cx="102" cy="66" rx={2.3 * dilate} ry={6.2 / dilate} fill="#0c0c0c" />
-              <circle cx="66.5" cy="63.5" r="1" fill="#ffffff" opacity="0.85" />
-              <circle cx="100.5" cy="63.5" r="1" fill="#ffffff" opacity="0.85" />
-            </g>
-            {/* half-closed angry lids */}
-            <path d="M57 63 Q68 56 79 63 L79 58 Q68 52 57 57 Z" fill={fur.body} />
-            <path d="M91 63 Q102 56 113 63 L113 58 Q102 52 91 57 Z" fill={fur.body} />
+            <ellipse cx="67" cy="64" rx="7" ry="8" fill="#ffffff" stroke="#8fe3ff" strokeWidth="2.5" />
+            <ellipse cx="103" cy="64" rx="7" ry="8" fill="#ffffff" stroke="#8fe3ff" strokeWidth="2.5" />
           </g>
         )}
-
-        {/* heavy brows — a V driven into the bridge of the nose */}
-        <g stroke="#0a0a0a" strokeWidth="5.5" strokeLinecap="round">
-          <line x1="55" y1="55" x2="81" y2="66" />
-          <line x1="115" y1="55" x2="89" y2="66" />
-        </g>
 
         {/* lashes + blush for the girl */}
-        {spec.girl && !shouting && (
+        {spec.bow && (expr === "work" || expr === "staring") && (
           <g>
-            <g stroke="#141414" strokeWidth="1.6" strokeLinecap="round">
+            <g stroke={line} strokeWidth="1.8" strokeLinecap="round">
               <line x1="59" y1="61" x2="54" y2="57" />
-              <line x1="58" y1="65" x2="52" y2="63" />
               <line x1="111" y1="61" x2="116" y2="57" />
-              <line x1="112" y1="65" x2="118" y2="63" />
             </g>
-            <circle cx="58" cy="80" r="4" fill="#e2637f" opacity="0.3" />
-            <circle cx="112" cy="80" r="4" fill="#e2637f" opacity="0.3" />
+            <circle cx="56" cy="78" r="4" fill="#e2637f" opacity="0.35" />
+            <circle cx="114" cy="78" r="4" fill="#e2637f" opacity="0.35" />
           </g>
         )}
 
-        {/* reading glasses low on the nose — eyes glare over the rims */}
-        {spec.glasses && (
-          <g stroke="#2b2d31" strokeWidth="2" fill="#ffffff" fillOpacity="0.06">
-            <circle cx="68" cy="74" r="8.5" />
-            <circle cx="102" cy="74" r="8.5" />
-            <path d="M76.5 73 Q85 69 93.5 73" fill="none" />
-            <line x1="59.5" y1="72" x2="48" y2="66" />
-            <line x1="110.5" y1="72" x2="122" y2="66" />
-          </g>
-        )}
-
-        {/* sunglasses — slide down the nose when your password shows */}
-        {spec.shades && (
-          <g className={staring ? "cat-shades cat-shades--peek" : "cat-shades"}>
-            <rect x="53" y="58" width="28" height="17" rx="7" fill="#0c0d10" stroke="#6a6e78" strokeWidth="1.6" />
-            <rect x="89" y="58" width="28" height="17" rx="7" fill="#0c0d10" stroke="#6a6e78" strokeWidth="1.6" />
-            <path d="M81 63 Q85 60 89 63" stroke="#6a6e78" strokeWidth="2.4" fill="none" />
-            <line x1="53" y1="63" x2="44" y2="58" stroke="#6a6e78" strokeWidth="2.4" />
-            <line x1="117" y1="63" x2="126" y2="58" stroke="#6a6e78" strokeWidth="2.4" />
-            <line x1="59" y1="62" x2="66" y2="70" stroke="#ffffff" strokeWidth="2.2" opacity="0.38" />
-            <line x1="95" y1="62" x2="102" y2="70" stroke="#ffffff" strokeWidth="2.2" opacity="0.38" />
+        {/* round reading glasses */}
+        {spec.glasses && !saiyan && (
+          <g stroke={line} strokeWidth="2" fill="none">
+            <circle cx="67" cy="66" r="10" />
+            <circle cx="103" cy="66" r="10" />
+            <path d="M77 64 Q85 60 93 64" />
+            <line x1="57" y1="63" x2="48" y2="58" />
+            <line x1="113" y1="63" x2="122" y2="58" />
           </g>
         )}
 
         {/* nose */}
-        <path d="M79 90 L91 90 L85 98 Z" fill="#d97b8e" />
+        <circle cx="85" cy="78" r="3.6" fill={line} />
 
-        {/* mouth: scream > snarl > scowl */}
-        {shouting ? (
+        {/* mouth */}
+        {expr === "shout" || saiyan ? (
           <g>
-            <path d="M70 98 Q85 94 100 98 Q102 116 85 121 Q68 116 70 98 Z" fill="#5e1a24" />
-            <ellipse cx="85" cy="115" rx="8" ry="4" fill="#e0697d" />
-            <path d="M72 99 L78 99 L75 107 Z" fill="#ffffff" />
-            <path d="M98 99 L92 99 L95 107 Z" fill="#ffffff" />
+            <path d="M72 86 Q85 82 98 86 Q99 102 85 106 Q71 102 72 86 Z" fill={line} />
+            <path d="M75 87 L80 87 L77.5 94 Z" fill="#ffffff" />
+            <path d="M95 87 L90 87 L92.5 94 Z" fill="#ffffff" />
           </g>
-        ) : aggro ? (
+        ) : expr === "angry" ? (
           <g>
-            <path d="M70 100 Q85 117 100 100 Q85 106 70 100 Z" fill="#5e1a24" />
-            <path d="M72 101 L77 101 L74.5 109 Z" fill="#ffffff" />
-            <path d="M98 101 L93 101 L95.5 109 Z" fill="#ffffff" />
+            <path d="M74 86 Q85 96 96 86 Q85 90 74 86 Z" fill={line} />
+            <path d="M76 87 L80 87 L78 93 Z" fill="#ffffff" />
+            <path d="M94 87 L90 87 L92 93 Z" fill="#ffffff" />
           </g>
+        ) : expr === "recoil" ? (
+          <circle cx="85" cy="88" r="4.5" fill={line} />
+        ) : expr === "cowed" ? (
+          <path d="M77 88 q4 3 8 0 q4 -3 8 0" stroke={line} strokeWidth="2.4" fill="none" strokeLinecap="round" />
         ) : (
-          <path d="M74 102 Q85 97 96 102" stroke="#141414" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+          <path d="M77 89 Q85 83 93 89" stroke={line} strokeWidth="2.6" fill="none" strokeLinecap="round" />
         )}
 
-        {/* whiskers */}
-        <g stroke={spec.whisker} strokeWidth="1.2" strokeLinecap="round">
-          <line x1="64" y1="88" x2="36" y2="82" />
-          <line x1="64" y1="93" x2="37" y2="96" />
-          <line x1="106" y1="88" x2="134" y2="82" />
-          <line x1="106" y1="93" x2="133" y2="96" />
-        </g>
+        {/* anger mark when hovered */}
+        {expr === "angry" && (
+          <g className="cat-angermark" stroke="#ff5d5d" strokeWidth="4" strokeLinecap="round">
+            <line x1="122" y1="30" x2="122" y2="41" />
+            <line x1="133" y1="30" x2="133" y2="41" />
+            <line x1="117" y1="35" x2="127" y2="35" />
+            <line x1="128" y1="35" x2="138" y2="35" />
+          </g>
+        )}
+
+        {/* sweat drop when the senior is glowing */}
+        {expr === "cowed" && (
+          <path
+            className="cat-sweat"
+            d="M126 34 q7 10 0 15 q-8 -5 0 -15"
+            fill="#9fd6ff"
+            stroke="#5ba8dd"
+            strokeWidth="1.4"
+          />
+        )}
 
         {/* grawlix bubble while screaming */}
-        {shouting && (
+        {expr === "shout" && (
           <g className="cat-grawlix">
-            <path d="M120 22 L112 34 L128 25 Z" fill="#ffd84a" />
-            <rect x="110" y="2" width="52" height="22" rx="10" fill="#ffd84a" stroke="#141414" strokeWidth="1.5" />
-            <text x="136" y="18" textAnchor="middle" fontSize="13" fontWeight="800" fill="#141414">
+            <path d="M120 24 L112 36 L128 27 Z" fill="#ffd84a" />
+            <rect x="110" y="4" width="52" height="22" rx="10" fill="#ffd84a" stroke={line} strokeWidth="1.5" />
+            <text x="136" y="20" textAnchor="middle" fontSize="13" fontWeight="800" fill={line}>
               #@?!
             </text>
           </g>
         )}
       </g>
 
-      {/* hover: rear up and swing at the cursor, claws out */}
-      {swat && !reduced && (
-        <g className="cat-swatarm">
-          <line
-            x1={swatDir > 0 ? 118 : 52}
-            y1="132"
-            x2={swatDir > 0 ? 132 : 38}
-            y2="76"
-            stroke={fur.body}
-            strokeWidth="14"
-            strokeLinecap="round"
-          />
-          <ellipse cx={swatDir > 0 ? 133 : 37} cy="72" rx="10.5" ry="9.5" fill={fur.body} />
-          <g stroke={spec.claw} strokeWidth="2.4" strokeLinecap="round">
-            <line x1={swatDir > 0 ? 126 : 30} y1="64" x2={swatDir > 0 ? 123 : 27} y2="56" />
-            <line x1={swatDir > 0 ? 133 : 37} y1="62" x2={swatDir > 0 ? 133 : 37} y2="53" />
-            <line x1={swatDir > 0 ? 140 : 44} y1="64" x2={swatDir > 0 ? 143 : 47} y2="56" />
+      {/* chest fluff dashes */}
+      <g stroke={spec.hoodie ? "#3a3b41" : line} strokeWidth="2" strokeLinecap="round" opacity="0.55">
+        <line x1="68" y1="112" x2="65" y2="120" />
+        <line x1="79" y1="115" x2="77" y2="123" />
+        <line x1="91" y1="115" x2="93" y2="123" />
+        <line x1="102" y1="112" x2="105" y2="120" />
+      </g>
+
+      {/* ------------------------------ the laptop ---------------------------- */}
+      <g className="cat-laptop">
+        {/* MacBook: aluminium lid, glowing paw logo, slim deck */}
+        <g transform="rotate(-3 85 170)">
+          <rect x="38" y="142" width="94" height="56" rx="10" fill="#d4d8dd" stroke="#9aa1a9" strokeWidth="1" />
+          <rect x="118" y="142" width="14" height="56" rx="10" fill="#c2c7cd" />
+          <ellipse cx="85" cy="168" rx="10" ry="8.5" fill="#ffffff" opacity="0.25" />
+          <ellipse cx="85" cy="170" rx="5.5" ry="4.5" fill="#ffffff" />
+          <circle cx="78" cy="162" r="2.2" fill="#ffffff" />
+          <circle cx="85" cy="160" r="2.2" fill="#ffffff" />
+          <circle cx="92" cy="162" r="2.2" fill="#ffffff" />
+        </g>
+        <rect x="31" y="196" width="108" height="9" rx="4.5" fill="#b7bdc4" />
+        <rect x="36" y="203" width="98" height="2" rx="1" fill="#8f959c" opacity="0.6" />
+      </g>
+
+      {/* paws hammering, one either side of the base */}
+      <g className="cat-paw cat-paw--l">
+        <ellipse cx="38" cy="200" rx="10" ry="7" fill={fur} />
+        <g stroke={saiyan ? "#c99a12" : "#00000033"} strokeWidth="1.5" strokeLinecap="round">
+          <line x1="34" y1="197" x2="34" y2="202" />
+          <line x1="39" y1="196" x2="39" y2="202" />
+        </g>
+      </g>
+      <g className="cat-paw cat-paw--r">
+        <ellipse cx="132" cy="200" rx="10" ry="7" fill={fur} />
+        <g stroke={saiyan ? "#c99a12" : "#00000033"} strokeWidth="1.5" strokeLinecap="round">
+          <line x1="128" y1="197" x2="128" y2="202" />
+          <line x1="133" y1="196" x2="133" y2="202" />
+        </g>
+      </g>
+
+      {/* coffee for the senior */}
+      {spec.mug && (
+        <g>
+          <g className="cat-steam" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.5">
+            <path d="M148 176 q3 -6 0 -12" />
+            <path d="M155 178 q3 -5 0 -10" />
           </g>
+          <rect x="140" y="182" width="21" height="24" rx="3" fill="#d97706" />
+          <path d="M161 187 q9 2 6 9 q-2 6 -8 5" stroke="#d97706" strokeWidth="4" fill="none" />
+          <ellipse cx="150.5" cy="183" rx="9" ry="2.4" fill="#8a4a04" />
         </g>
       )}
 
       {/* the haymaker: wind up overhead, swing across into the neighbour */}
       {slapping && (
         <g className="cat-reacharm">
-          <line x1={reachX} y1="132" x2={reachX} y2="58" stroke={fur.body} strokeWidth="14" strokeLinecap="round" />
-          <ellipse cx={reachX} cy="52" rx="11" ry="10" fill={fur.body} />
-          <g stroke={spec.claw} strokeWidth="2.4" strokeLinecap="round">
-            <line x1={reachX - 7} y1="44" x2={reachX - 10} y2="36" />
-            <line x1={reachX} y1="42" x2={reachX} y2="33" />
-            <line x1={reachX + 7} y1="44" x2={reachX + 10} y2="36" />
+          <line x1={reachX} y1="130" x2={reachX} y2="58" stroke={fur} strokeWidth="15" strokeLinecap="round" />
+          <ellipse cx={reachX} cy="52" rx="11" ry="10" fill={fur} />
+          <g stroke="#00000044" strokeWidth="2.2" strokeLinecap="round">
+            <line x1={reachX - 6} y1="45" x2={reachX - 9} y2="38" />
+            <line x1={reachX} y1="43" x2={reachX} y2="35" />
+            <line x1={reachX + 6} y1="45" x2={reachX + 9} y2="38" />
           </g>
         </g>
       )}
 
-      {/* got clobbered: impact burst on the struck cheek */}
-      {recoil && (
-        <g className="cat-impact" transform={`translate(${recoilDir < 0 ? 126 : 44}, 70)`}>
+      {/* got smacked: impact burst on the struck cheek */}
+      {expr === "recoil" && (
+        <g className="cat-impact" transform={`translate(${recoilDir < 0 ? 124 : 46}, 66)`}>
           <path
             d="M0 -17 L4.5 -5 L16 -6 L6.5 2 L12 15 L0 6.5 L-12 15 L-6.5 2 L-16 -6 L-4.5 -5 Z"
             fill="#ffd84a"
-            stroke="#141414"
+            stroke={line}
             strokeWidth="1.5"
           />
         </g>
@@ -496,18 +435,18 @@ export default function CatsLogin({
   action: (formData: FormData) => void;
   hasError: boolean;
 }) {
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [hovered, setHovered] = useState<number | null>(null);
   const [slap, setSlap] = useState<{ from: number; to: number } | null>(null);
   const [shout, setShout] = useState<number | null>(null);
+  const [saiyan, setSaiyan] = useState(false);
   const [reduced, setReduced] = useState(false);
-  const catRowRef = useRef<HTMLDivElement>(null);
+  const saiyanRef = useRef(false);
 
   const staring = showPassword && password.length > 0;
 
-  // Respect prefers-reduced-motion: no tracking, no brawling, no screaming.
+  // Respect prefers-reduced-motion: no brawling, no screaming, no transforming.
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const apply = () => setReduced(mq.matches);
@@ -516,26 +455,21 @@ export default function CatsLogin({
     return () => mq.removeEventListener("change", apply);
   }, []);
 
-  useEffect(() => {
-    if (reduced) return;
-    const onMove = (e: MouseEvent) => setMouse({ x: e.clientX, y: e.clientY });
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [reduced]);
-
-  // Random, unprovoked cat-on-cat violence — the haymaker actually lands.
+  // Random smacks between the three juniors. Never while the senior glows.
   useEffect(() => {
     if (reduced) return;
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
       // ponytail: crypto-free jitter is fine for cosmetic timing.
-      const wait = 1600 + Math.random() * 2800;
+      const wait = 1800 + Math.random() * 3000;
       timer = setTimeout(() => {
-        const from = Math.floor(Math.random() * CATS.length);
-        const to = Math.random() < 0.5 ? from - 1 : from + 1;
-        if (to >= 0 && to < CATS.length) {
-          setSlap({ from, to });
-          setTimeout(() => setSlap(null), 800);
+        if (!saiyanRef.current) {
+          const from = Math.floor(Math.random() * 3); // juniors only
+          const to = Math.random() < 0.5 ? from - 1 : from + 1;
+          if (to >= 0 && to < 3) {
+            setSlap({ from, to });
+            setTimeout(() => setSlap(null), 800);
+          }
         }
         schedule();
       }, wait);
@@ -544,15 +478,17 @@ export default function CatsLogin({
     return () => clearTimeout(timer);
   }, [reduced]);
 
-  // And every so often somebody just screams at their screen.
+  // And every so often a junior screams at their screen.
   useEffect(() => {
     if (reduced) return;
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
-      const wait = 2400 + Math.random() * 3600;
+      const wait = 2600 + Math.random() * 3800;
       timer = setTimeout(() => {
-        setShout(Math.floor(Math.random() * CATS.length));
-        setTimeout(() => setShout(null), 950);
+        if (!saiyanRef.current) {
+          setShout(Math.floor(Math.random() * 3));
+          setTimeout(() => setShout(null), 950);
+        }
         schedule();
       }, wait);
     };
@@ -560,11 +496,40 @@ export default function CatsLogin({
     return () => clearTimeout(timer);
   }, [reduced]);
 
-  const catCenterX = (i: number) => {
-    const el = catRowRef.current?.children[i] as HTMLElement | undefined;
-    if (!el) return 0;
-    const r = el.getBoundingClientRect();
-    return r.left + r.width / 2;
+  // The senior's fuse: after a while he goes super saiyan for a few seconds,
+  // and the whole room quietly gets back to work.
+  useEffect(() => {
+    if (reduced) return;
+    let fuse: ReturnType<typeof setTimeout>;
+    let cool: ReturnType<typeof setTimeout>;
+    const cycle = () => {
+      fuse = setTimeout(() => {
+        saiyanRef.current = true;
+        setSaiyan(true);
+        setSlap(null);
+        setShout(null);
+        cool = setTimeout(() => {
+          saiyanRef.current = false;
+          setSaiyan(false);
+          cycle();
+        }, 7000);
+      }, 14000 + Math.random() * 14000);
+    };
+    cycle();
+    return () => {
+      clearTimeout(fuse);
+      clearTimeout(cool);
+    };
+  }, [reduced]);
+
+  // Expression per cat, most dramatic state wins.
+  const exprFor = (i: number): Expr => {
+    if (saiyan) return i === SENIOR ? "saiyan" : "cowed";
+    if (shout === i) return "shout";
+    if (slap?.to === i) return "recoil";
+    if (hovered === i) return "angry";
+    if (staring) return "staring";
+    return "work";
   };
 
   return (
@@ -597,14 +562,13 @@ export default function CatsLogin({
           </h2>
           <p className="mt-3 max-w-sm text-sm text-white/70">
             The team&apos;s been shipping all night and tempers are gone. Hover a
-            cat if you don&apos;t need that cursor.
+            cat to make it worse. The grey one has a limit — wait for it.
           </p>
         </div>
 
         {/* the desk of feuding cats */}
         <div className="relative z-10">
           <div
-            ref={catRowRef}
             className="flex items-end justify-center gap-0 sm:gap-1"
             onMouseLeave={() => setHovered(null)}
           >
@@ -615,29 +579,23 @@ export default function CatsLogin({
                 onMouseEnter={() => setHovered(i)}
                 style={{
                   width: "24%",
-                  // mid-swing sits on top so the paw lands over the victim
-                  zIndex: slap?.from === i ? 30 : hovered === i ? 20 : 10 - i,
+                  zIndex:
+                    saiyan && i === SENIOR ? 40 : slap?.from === i ? 30 : hovered === i ? 20 : 10 - i,
                 }}
               >
                 <Cat
                   spec={spec}
-                  mouseX={mouse.x}
-                  mouseY={mouse.y}
-                  staring={staring}
-                  swat={hovered === i}
-                  swatDir={mouse.x < catCenterX(i) ? -1 : 1}
-                  shouting={shout === i}
-                  recoil={slap?.to === i}
-                  recoilDir={slap && slap.from < i ? 1 : -1}
+                  expr={exprFor(i)}
                   slapping={slap?.from === i}
                   slapDir={slap && slap.to > slap.from ? 1 : -1}
+                  recoilDir={slap && slap.from < i ? 1 : -1}
                   reduced={reduced}
                 />
               </div>
             ))}
           </div>
           {/* the desk */}
-          <div className="clv-desk relative h-3.5 rounded-[3px]" />
+          <div className="clv-desk relative h-4 rounded-[3px]" />
           <div className="mx-4 h-2.5 rounded-full bg-black/25 blur-[2px]" />
         </div>
 
@@ -715,8 +673,7 @@ export default function CatsLogin({
               </span>
               {staring ? (
                 <span className="text-[12px] text-ink-faint">
-                  Four sets of eyes just locked onto your password. One lowered
-                  its sunglasses.
+                  Four sets of eyes just locked onto your password.
                 </span>
               ) : null}
             </label>
@@ -752,7 +709,7 @@ function EyeOff() {
 /* ---------------------------------------------------------------- the CSS -- */
 /* Keyframes live here so the login is one self-contained file. The global
    prefers-reduced-motion rule in globals.css zeroes these out; the JS above
-   also stops tracking / brawling / screaming when reduced. */
+   also stops the brawling / screaming / transforming when reduced. */
 const CAT_CSS = `
 .clv-room {
   background: radial-gradient(120% 100% at 0% 0%, var(--accent-hover) 0%, var(--accent) 55%, #14503c 100%);
@@ -770,75 +727,64 @@ const CAT_CSS = `
 @keyframes clv-float-b { 50% { transform: translate(2rem, -1.5rem) scale(1.05); } }
 
 .clv-desk {
-  background: linear-gradient(#1a5f49, #113f31);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+  background: linear-gradient(#c79a6b, #a87f52);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
 }
 
 .clv-cat-slot { display: flex; justify-content: center; }
-.cat-root { width: 100%; height: auto; overflow: visible; }
-.cat-pupils { transition: transform 0.09s ease-out; }
-.cat-shades { transition: transform 0.25s ease-out; }
-.cat-shades--peek { transform: translateY(9px) rotate(2deg); }
+.cat-root { width: 100%; height: auto; overflow: visible; transition: transform 0.25s ease; }
 
-/* screen glow flickers */
-.cat-live .cat-glow { animation: clv-flicker 1.1s steps(2, jump-none) infinite; }
-@keyframes clv-flicker { 50% { opacity: 0.22; } }
+/* paws hammering the keyboard, out of phase */
+.cat-paw { transform-box: fill-box; transform-origin: 50% 100%; }
+.cat-live .cat-paw--l { animation: clv-type 0.16s ease-in-out infinite; }
+.cat-live .cat-paw--r { animation: clv-type 0.16s ease-in-out infinite; animation-delay: 0.08s; }
+@keyframes clv-type { 50% { transform: translateY(-8px); } }
+/* soft, careful typing while the senior glows */
+.cat-cowed .cat-paw--l, .cat-cowed .cat-paw--r { animation-name: clv-type-soft; animation-duration: 0.5s; }
+@keyframes clv-type-soft { 50% { transform: translateY(-2.5px); } }
+/* rage typing */
+.cat-saiyan .cat-paw--l, .cat-saiyan .cat-paw--r { animation-duration: 0.09s; }
 
 /* the lid shudders under the hammering */
 .cat-laptop { transform-box: fill-box; transform-origin: 50% 100%; }
-.cat-live .cat-laptop { animation: clv-shake 0.18s ease-in-out infinite; }
-@keyframes clv-shake { 50% { transform: translateY(0.8px); } }
+.cat-live .cat-laptop { animation: clv-shake 0.16s ease-in-out infinite; }
+@keyframes clv-shake { 50% { transform: translateY(0.7px); } }
+.cat-cowed .cat-laptop { animation: none; }
 
-/* head bobs with the typing */
-.cat-head { transform-box: fill-box; transform-origin: 50% 100%; }
-.cat-live .cat-head { animation: clv-bob 0.26s ease-in-out infinite; }
-@keyframes clv-bob { 50% { transform: translateY(1.6px) rotate(0.5deg); } }
-/* screaming overrides the bob: head thrown back */
-.cat-live.cat-shout .cat-head { animation: clv-yell 0.95s ease-in-out; }
+/* the face bobs with the typing */
+.cat-face { transform-box: fill-box; transform-origin: 50% 100%; }
+.cat-live .cat-face { animation: clv-bob 0.26s ease-in-out infinite; }
+@keyframes clv-bob { 50% { transform: translateY(1.3px); } }
+.cat-cowed .cat-face { animation-duration: 0.6s; }
+
+/* screaming: whole cat rocks back */
+.cat-shout { animation: clv-yell 0.95s ease-in-out; }
 @keyframes clv-yell {
-  0%,100% { transform: rotate(0deg) translateY(0); }
-  20%,80% { transform: rotate(-9deg) translateY(-4px); }
+  0%,100% { transform: rotate(0deg); }
+  20%,80% { transform: rotate(-4deg) translateY(-3px); }
 }
-.cat-grawlix { transform-box: fill-box; transform-origin: 20% 100%; animation: clv-pop 0.95s ease-out; }
-
-/* tail lashes fast and angry */
-.cat-tail { transform-box: fill-box; transform-origin: 0% 100%; }
-.cat-live .cat-tail { animation: clv-lash 0.7s ease-in-out infinite; }
-@keyframes clv-lash { 0%,100% { transform: rotate(7deg); } 50% { transform: rotate(-17deg); } }
-
-/* arms hammering the keys behind the lid, out of phase */
-.cat-arm { transform-box: fill-box; }
-.cat-arm--l { transform-origin: 25% 95%; }
-.cat-arm--r { transform-origin: 75% 95%; }
-.cat-live .cat-arm--l { animation: clv-hammer-l 0.18s ease-in-out infinite; }
-.cat-live .cat-arm--r { animation: clv-hammer-r 0.18s ease-in-out infinite; animation-delay: 0.09s; }
-@keyframes clv-hammer-l { 50% { transform: rotate(10deg) translateY(9px); } 100% { transform: rotate(-12deg); } }
-@keyframes clv-hammer-r { 50% { transform: rotate(-10deg) translateY(9px); } 100% { transform: rotate(12deg); } }
-/* clack ticks blink where the paws land */
-.cat-clack { opacity: 0; }
-.cat-live .cat-clack--l { animation: clv-clack 0.18s steps(1) infinite; }
-.cat-live .cat-clack--r { animation: clv-clack 0.18s steps(1) infinite; animation-delay: 0.09s; }
-@keyframes clv-clack { 45% { opacity: 0.9; } 65% { opacity: 0; } }
-
-/* ears flatten back when the cat is riled */
-.cat-ears { transform-box: fill-box; transform-origin: 50% 100%; transition: transform 0.12s ease-out; }
-.cat-aggro .cat-ears { transform: scaleY(0.62) translateY(8px); }
-
-/* hover: rear up + repeated overhead swings at the cursor */
-.cat-lunge { animation: clv-lunge 0.42s ease-in-out infinite; }
-@keyframes clv-lunge {
-  0%,100% { transform: translateX(0) rotate(0deg); }
-  45% { transform: translateX(calc(var(--swat-dir) * 9px)) rotate(calc(var(--swat-dir) * 3deg)); }
-}
-.cat-swatarm { transform-box: fill-box; transform-origin: 50% 92%; animation: clv-swat 0.42s cubic-bezier(0.5, 0, 0.4, 1) infinite; }
-@keyframes clv-swat {
-  0%,100% { transform: rotate(calc(var(--swat-dir) * -14deg)); }
-  30% { transform: rotate(calc(var(--swat-dir) * -85deg)) translateY(-4px); }
-  52% { transform: rotate(calc(var(--swat-dir) * 62deg)); }
-  68% { transform: rotate(calc(var(--swat-dir) * 48deg)); }
+.cat-grawlix { transform-box: fill-box; transform-origin: 20% 100%; animation: clv-gpop 0.95s ease-out; }
+@keyframes clv-gpop {
+  0% { opacity: 0; transform: scale(0.3); }
+  18% { opacity: 1; transform: scale(1.1); }
+  80% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
 }
 
-/* the haymaker: wind up overhead, then swing down across into the neighbour */
+/* hovered: bristle up, anger mark pops */
+.cat-bristle { animation: clv-bristle 0.3s ease-out forwards; }
+@keyframes clv-bristle {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05) rotate(-1.5deg); }
+  70% { transform: scale(1.02) rotate(1deg); }
+  100% { transform: scale(1.03); }
+}
+.cat-angermark { animation: clv-apop 0.25s ease-out backwards, clv-athrob 0.8s ease-in-out 0.25s infinite; }
+@keyframes clv-apop { 0% { opacity: 0; transform: scale(0.3); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes clv-athrob { 50% { opacity: 0.75; } }
+.cat-angermark { transform-box: fill-box; transform-origin: 50% 50%; }
+
+/* the haymaker: wind up overhead, swing down across into the neighbour */
 .cat-reacharm { transform-box: fill-box; transform-origin: 50% 94%; animation: clv-haymaker 0.62s cubic-bezier(0.45, 0, 0.3, 1) both; }
 @keyframes clv-haymaker {
   0% { transform: rotate(0deg); }
@@ -847,29 +793,47 @@ const CAT_CSS = `
   62% { transform: rotate(calc(var(--slap-dir) * 94deg)); }
   100% { transform: rotate(calc(var(--slap-dir) * 20deg)); }
 }
-/* aggressor lunges bodily into the swing */
 .cat-lean { animation: clv-lean 0.62s ease-out both; }
 @keyframes clv-lean {
   0%,12% { transform: translateX(0) rotate(0deg); }
-  48% { transform: translateX(calc(var(--slap-dir) * 24px)) rotate(calc(var(--slap-dir) * 6deg)); }
+  48% { transform: translateX(calc(var(--slap-dir) * 24px)) rotate(calc(var(--slap-dir) * 5deg)); }
   70% { transform: translateX(calc(var(--slap-dir) * 14px)) rotate(calc(var(--slap-dir) * 3deg)); }
   100% { transform: translateX(0) rotate(0deg); }
 }
-/* the victim snaps away from the blow — delayed until the paw arrives */
 .cat-recoil { animation: clv-recoil 0.55s cubic-bezier(0.3, 0, 0.2, 1) 0.18s backwards; }
 @keyframes clv-recoil {
   0% { transform: translateX(0) rotate(0deg); }
-  30% { transform: translateX(calc(var(--recoil-dir) * 18px)) rotate(calc(var(--recoil-dir) * 11deg)); }
+  30% { transform: translateX(calc(var(--recoil-dir) * 18px)) rotate(calc(var(--recoil-dir) * 10deg)); }
   62% { transform: translateX(calc(var(--recoil-dir) * 7px)) rotate(calc(var(--recoil-dir) * 4deg)); }
   100% { transform: translateX(0) rotate(0deg); }
 }
-/* impact burst pops on contact */
 .cat-impact { transform-box: fill-box; transform-origin: 50% 50%; animation: clv-pop 0.5s ease-out 0.2s backwards; }
 @keyframes clv-pop {
   0% { opacity: 0; scale: 0.2; }
   25% { opacity: 1; scale: 1.18; }
   70% { opacity: 1; scale: 1; }
   100% { opacity: 0; scale: 1; }
+}
+
+/* super saiyan: flame roars, the cat trembles with power */
+.cat-flame { transform-box: fill-box; transform-origin: 50% 100%; animation: clv-flame 0.24s ease-in-out infinite alternate; }
+@keyframes clv-flame {
+  0% { transform: scaleY(0.97) scaleX(1.01); }
+  100% { transform: scaleY(1.05) scaleX(0.99); }
+}
+.cat-saiyan { animation: clv-rage 0.12s linear infinite; }
+@keyframes clv-rage {
+  0%,100% { transform: translateX(-1.2px); }
+  50% { transform: translateX(1.2px); }
+}
+/* cowed juniors hunker down */
+.cat-cowed { transform: scale(0.96) translateY(4px); }
+
+/* the sweat drop slides */
+.cat-sweat { animation: clv-sweat 1.4s ease-in-out infinite; }
+@keyframes clv-sweat {
+  0%,100% { transform: translateY(0); opacity: 0.95; }
+  50% { transform: translateY(5px); opacity: 0.45; }
 }
 
 /* coffee steam */
