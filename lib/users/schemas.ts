@@ -87,3 +87,25 @@ export const updateAuthorProfileSchema = z
     message: "Provide at least one field to update.",
   });
 export type UpdateAuthorProfileInput = z.infer<typeof updateAuthorProfileSchema>;
+
+/**
+ * POST /api/author-profiles — an admin creates a login-less byline profile
+ * directly (isGhost). Same fields as an edit, but displayName is required and
+ * slug is optional (derived from the name when omitted).
+ */
+export const createAuthorProfileSchema = z.object({
+  displayName: z.string().trim().min(1, "Full name is required.").max(160),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens.")
+    .optional(),
+  title: z.string().trim().max(120).nullable().optional(),
+  bio: z.string().trim().max(500).nullable().optional(),
+  socialLinks: socialLinksSchema.optional(),
+  avatarAssetId: z.string().uuid().nullable().optional(),
+  isPublic: z.boolean().optional(),
+});
+export type CreateAuthorProfileInput = z.infer<typeof createAuthorProfileSchema>;

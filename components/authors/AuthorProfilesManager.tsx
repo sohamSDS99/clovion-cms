@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Loading, InlineError, EmptyState } from "@/components/ui/Feedback";
 import { cn } from "@/lib/ui/cn";
 import { InviteDialog } from "@/components/users/InviteDialog";
+import { AuthorProfileCreateModal } from "./AuthorProfileCreateModal";
 import { api, errorMessage } from "@/lib/ui/client";
 import { AuthorProfileEditModal } from "./AuthorProfileEditModal";
 import type { AuthorProfileAdminRow } from "./types";
@@ -56,6 +57,7 @@ export function AuthorProfilesManager() {
   const [titleFilter, setTitleFilter] = useState<string>(ALL);
   const [creatorFilter, setCreatorFilter] = useState<string>(ALL);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AuthorProfileAdminRow | null>(null);
   // Rows whose avatar image 404'd — fall back to initials instead of a broken glyph.
   const [brokenAvatars, setBrokenAvatars] = useState<Set<string>>(new Set());
@@ -164,23 +166,30 @@ export function AuthorProfilesManager() {
                     className="h-9 w-full rounded-sm border border-line-strong bg-paper-raised px-3 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 sm:max-w-xs"
                   />
                 </div>
-                <Button variant="primary" onClick={() => setInviteOpen(true)}>
-                  <IconUserPlus /> Add Author Profile
-                </Button>
+                <div className="flex shrink-0 gap-2">
+                  <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                    <IconUserPlus /> Create profile
+                  </Button>
+                  <Button variant="secondary" onClick={() => setInviteOpen(true)}>
+                    Invite author
+                  </Button>
+                </div>
               </div>
 
               {total === 0 ? (
                 <div className="px-6 py-10">
                   <EmptyState
                     title="No author profiles yet"
-                    description="Invite a teammate (as anything other than a Viewer) to create their author profile."
+                    description="Create a byline-only profile directly, or invite a teammate to set up their own."
                     action={
-                      <Button
-                        variant="primary"
-                        onClick={() => setInviteOpen(true)}
-                      >
-                        Add Author Profile
-                      </Button>
+                      <div className="flex justify-center gap-2">
+                        <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                          Create profile
+                        </Button>
+                        <Button variant="secondary" onClick={() => setInviteOpen(true)}>
+                          Invite author
+                        </Button>
+                      </div>
                     }
                   />
                 </div>
@@ -302,6 +311,12 @@ export function AuthorProfilesManager() {
       </PageBody>
 
       {/* Invite → auto-creates a paired author profile for non-viewers. */}
+      <AuthorProfileCreateModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => load()}
+      />
+
       <InviteDialog
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
