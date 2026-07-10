@@ -542,7 +542,7 @@ export default function CatsLogin({
         <div className="clv-blob clv-blob--b" aria-hidden />
         <div className="clv-dots" aria-hidden />
 
-        <div className="relative z-10 flex items-center gap-3">
+        <div className="relative z-10 flex items-center">
           <span className="grid place-items-center rounded-md bg-white/12 px-3 py-2 backdrop-blur-sm ring-1 ring-white/15">
             <Image
               src="/clovion-logo.png"
@@ -553,7 +553,6 @@ export default function CatsLogin({
               className="h-6 w-auto brightness-0 invert"
             />
           </span>
-          <span className="text-sm font-medium tracking-wide text-white/70">CMS</span>
         </div>
 
         <div className="relative z-10">
@@ -596,16 +595,12 @@ export default function CatsLogin({
           <div className="mx-4 h-2.5 rounded-full bg-black/25 blur-[2px]" />
         </div>
 
-        <div className="relative z-10 flex gap-6 text-xs text-white/45">
-          <span>Clovion AI</span>
-          <span>Headless content engine</span>
-        </div>
       </section>
 
       {/* ---- Right: the sign-in form ---- */}
       <section className="flex items-center justify-center bg-paper px-6 py-12">
         <div className="w-full max-w-sm">
-          <div className="mb-8 flex items-center gap-2 lg:hidden">
+          <div className="mb-8 flex items-center lg:hidden">
             <Image
               src="/clovion-logo.png"
               alt="Clovion"
@@ -614,7 +609,6 @@ export default function CatsLogin({
               priority
               className="h-6 w-auto"
             />
-            <span className="text-sm font-medium text-ink-mute">CMS</span>
           </div>
 
           <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
