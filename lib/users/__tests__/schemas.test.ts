@@ -7,6 +7,7 @@ import {
   updateUserSchema,
   acceptInviteSchema,
   updateAuthorProfileSchema,
+  createAuthorProfileSchema,
 } from "@/lib/users/schemas";
 
 describe("inviteUserSchema", () => {
@@ -87,5 +88,33 @@ describe("updateAuthorProfileSchema", () => {
     expect(
       updateAuthorProfileSchema.safeParse({ socialLinks: { x: "not-a-url" } }).success
     ).toBe(false);
+  });
+});
+
+describe("createAuthorProfileSchema", () => {
+  it("requires a display name", () => {
+    expect(createAuthorProfileSchema.safeParse({}).success).toBe(false);
+    expect(createAuthorProfileSchema.safeParse({ displayName: "" }).success).toBe(false);
+    expect(createAuthorProfileSchema.safeParse({ displayName: "Jane Doe" }).success).toBe(true);
+  });
+  it("treats slug as optional (server derives it) but validates it when given", () => {
+    expect(createAuthorProfileSchema.safeParse({ displayName: "Jane" }).success).toBe(true);
+    expect(
+      createAuthorProfileSchema.safeParse({ displayName: "Jane", slug: "jane-doe" }).success
+    ).toBe(true);
+    expect(
+      createAuthorProfileSchema.safeParse({ displayName: "Jane", slug: "Jane Doe" }).success
+    ).toBe(false);
+  });
+  it("accepts optional title/bio/linkedin/avatar/public", () => {
+    expect(
+      createAuthorProfileSchema.safeParse({
+        displayName: "Jane",
+        title: "EHS Expert",
+        bio: "Fifteen years in safety.",
+        socialLinks: { linkedin: "https://www.linkedin.com/in/jane/" },
+        isPublic: true,
+      }).success
+    ).toBe(true);
   });
 });
