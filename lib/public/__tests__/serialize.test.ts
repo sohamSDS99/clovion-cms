@@ -110,3 +110,37 @@ describe("toPublicContent resource download URL", () => {
     expect(out.typeData.downloadUrl).toBeUndefined();
   });
 });
+
+// Covers expose responsive variants + intrinsic dimensions so the website can
+// pick the right-sized image and decide cover-vs-contain from the aspect ratio.
+describe("cover image", () => {
+  function withCover(cover: unknown): ContentItemWithRelations {
+    return { ...item(null), coverAsset: cover } as ContentItemWithRelations;
+  }
+
+  it("projects url, variants and dimensions", () => {
+    const out = toPublicSummary(
+      withCover({
+        url: "https://cdn/cover.png",
+        variants: { thumb: "https://cdn/cover.thumb.webp", md: "https://cdn/cover.md.webp" },
+        width: 1600,
+        height: 900,
+      }),
+    );
+    expect(out.coverImageUrl).toBe("https://cdn/cover.png"); // backward-compat
+    expect(out.coverImage).toEqual({
+      url: "https://cdn/cover.png",
+      thumb: "https://cdn/cover.thumb.webp",
+      md: "https://cdn/cover.md.webp",
+      lg: null,
+      width: 1600,
+      height: 900,
+    });
+  });
+
+  it("is null when there is no cover asset", () => {
+    const out = toPublicSummary(withCover(null));
+    expect(out.coverImageUrl).toBeNull();
+    expect(out.coverImage).toBeNull();
+  });
+});

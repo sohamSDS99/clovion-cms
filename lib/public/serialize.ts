@@ -62,6 +62,21 @@ export interface PublicCategory {
   slug: string;
 }
 
+/**
+ * Cover image with responsive WebP variants + intrinsic dimensions. Lets the
+ * website serve the right-sized image per card (srcset) and decide cover-vs-fit
+ * from the aspect ratio (width/height) instead of loading the full original
+ * everywhere. `coverImageUrl` (the original) is kept for backward compatibility.
+ */
+export interface PublicCoverImage {
+  url: string;
+  thumb: string | null;
+  md: string | null;
+  lg: string | null;
+  width: number | null;
+  height: number | null;
+}
+
 /** Full public content payload (single-item endpoint). */
 export interface PublicContent {
   id: string;
@@ -71,6 +86,7 @@ export interface PublicContent {
   excerpt: string | null;
   bodyHtml: string;
   coverImageUrl: string | null;
+  coverImage: PublicCoverImage | null;
   seo: PublicSeo;
   jsonLd: Record<string, unknown>;
   publishedAt: string | null;
@@ -141,6 +157,22 @@ function toTags(tags: Tag[]): PublicTag[] {
 
 function toCategory(category: Category | null): PublicCategory | null {
   return category ? { name: category.name, slug: category.slug } : null;
+}
+
+type CoverVariantMap = Partial<Record<"thumb" | "md" | "lg", string>>;
+
+/** Project a cover MediaAsset into the public cover shape (variants + dims). */
+function toCoverImage(asset: MediaAsset | null): PublicCoverImage | null {
+  if (!asset?.url) return null;
+  const variants = (asset.variants ?? {}) as CoverVariantMap;
+  return {
+    url: asset.url,
+    thumb: variants.thumb ?? null,
+    md: variants.md ?? null,
+    lg: variants.lg ?? null,
+    width: asset.width ?? null,
+    height: asset.height ?? null,
+  };
 }
 
 /**
@@ -268,6 +300,7 @@ export function toPublicContent(
     excerpt: item.excerpt ?? null,
     bodyHtml,
     coverImageUrl,
+    coverImage: toCoverImage(item.coverAsset),
     seo,
     jsonLd,
     publishedAt: item.publishedAt ? item.publishedAt.toISOString() : null,
@@ -295,6 +328,7 @@ export function toPublicSummary(
     slug: item.slug,
     excerpt: item.excerpt ?? null,
     coverImageUrl,
+    coverImage: toCoverImage(item.coverAsset),
     seo,
     publishedAt: item.publishedAt ? item.publishedAt.toISOString() : null,
     updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
