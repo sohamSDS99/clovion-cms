@@ -16,6 +16,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
+import { Bangers } from "next/font/google";
+
+// Comic-book shout font for the "Over 9000!" headline only.
+const bangers = Bangers({ subsets: ["latin"], weight: "400" });
 
 /* ------------------------------------------------------------- cat specs -- */
 
@@ -556,9 +560,11 @@ export default function CatsLogin({
         </div>
 
         <div className="relative z-10">
-          <h2 className="max-w-lg font-display text-[2.15rem] leading-[1.12] tracking-tight">
-            The Content Team Has Been Busy Lately &amp; Someones Stress Level is
-            Over 9000!
+          <h2
+            className={`${bangers.className} max-w-lg text-[2.9rem] leading-[1.05] tracking-wide`}
+          >
+            The Content Team Has Been Busy Lately &amp; Someones Stress Level is{" "}
+            <span className="text-[#ffd84a]">Over 9000!</span>
           </h2>
         </div>
 
