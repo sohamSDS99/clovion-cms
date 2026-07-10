@@ -27,6 +27,8 @@ import {
 } from "@/lib/editor/ai";
 import type {
   ContentItem,
+  ContentType,
+  FaqItem,
   MediaAsset,
   Role,
   TiptapDoc,
@@ -35,6 +37,7 @@ import type {
 import type { Draft } from "./layouts/types";
 import { TiptapEditor } from "./TiptapEditor";
 import { TypeFields } from "./TypeFields";
+import { FaqSection } from "./parts/FaqSection";
 import { SeoPanel } from "./SeoPanel";
 import { SchemaPanel } from "./SchemaPanel";
 import { AiAssistedBadge } from "./AiAssistedBadge";
@@ -297,6 +300,7 @@ export function EditorWorkspace({
                 update={update}
                 gateErrors={gateErrors}
                 authors={authors}
+                contentId={contentId}
                 onDelete={onDelete}
               />
             ) : tab === "seo" ? (
@@ -358,6 +362,7 @@ function DetailsTab({
   update,
   gateErrors,
   authors,
+  contentId,
   onDelete,
 }: {
   item: ContentItem;
@@ -365,8 +370,20 @@ function DetailsTab({
   update: (patch: Partial<Draft>) => void;
   gateErrors: Record<string, string>;
   authors: AuthorOption[];
+  contentId: string;
   onDelete: () => void;
 }) {
+  // Optional embeddable FAQ section for article-shaped types. The FAQ content
+  // type manages its own Q&A via TypeFields (it IS the content), so it's excluded.
+  const showFaqSection =
+    item.type === "BLOG" ||
+    item.type === "RESEARCH" ||
+    item.type === "NEWS" ||
+    item.type === "RESOURCE";
+  const faqItems: FaqItem[] = Array.isArray(draft.typeData.faqItems)
+    ? (draft.typeData.faqItems as FaqItem[])
+    : [];
+
   return (
     <div className="space-y-5">
       {item.type === "RESOURCE" ? (
@@ -445,6 +462,25 @@ function DetailsTab({
           onChange={(patch) => update({ typeData: { ...draft.typeData, ...patch } })}
           fieldErrors={gateErrors}
         />
+      ) : null}
+
+      {/* Optional embeddable FAQ section (BLOG/RESEARCH/NEWS/RESOURCE) with an
+          AI "Generate" action. The FAQ content type has its own Q&A above. */}
+      {showFaqSection ? (
+        <div className="border-t border-line pt-5">
+          <FaqSection
+            contentId={contentId}
+            contentType={item.type as ContentType}
+            items={faqItems}
+            onChange={(next) =>
+              update({ typeData: { ...draft.typeData, faqItems: next } })
+            }
+            error={gateErrors["typeData.faqItems"]}
+            title="FAQ section (optional)"
+            emptyTitle="No FAQ section"
+            emptyBody="Optional. Add common reader questions, or generate them from the article with AI. Each pair also feeds FAQPage schema."
+          />
+        </div>
       ) : null}
 
       <button
