@@ -96,10 +96,8 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
 
   // --- Type-specific requirements --------------------------------------
   switch (item.type) {
-    // RESEARCH is a gated downloadable report — same publish requirements as
-    // RESOURCE (a PDF must be attached to publish).
-    case "RESOURCE":
-    case "RESEARCH": {
+    // RESOURCE is a gated downloadable report — a PDF must be attached.
+    case "RESOURCE": {
       if (!item.typeData?.pdfAssetId) {
         errors.push({
           field: "typeData.pdfAssetId",
@@ -108,6 +106,11 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
       }
       break;
     }
+    // RESEARCH publishes as a long-form article (like BLOG): the body IS the
+    // report. A cover image and an attached file are optional, not required —
+    // the author decides what to upload. No type-specific publish requirement.
+    case "RESEARCH":
+      break;
     case "WEBINAR": {
       if (!item.typeData?.startAt) {
         errors.push({
