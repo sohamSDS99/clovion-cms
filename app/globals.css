@@ -131,9 +131,12 @@ body {
   font-weight: 600;
   margin-top: 1.2em;
 }
-.tiptap p {
-  margin: 0;
-}
+/* No `.tiptap p { margin: 0 }` reset here: Tailwind's preflight already zeroes
+   `p` margins (element specificity 0,0,1), and an explicit `.tiptap p` rule
+   (0,1,1) would outrank the `.tiptap > * + *` owl (0,1,0) above and kill the
+   inter-paragraph gap. Leaving it off lets the owl add `margin-top` between
+   top-level blocks (paragraphs included). List/blockquote paragraphs keep their
+   own tighter resets below. */
 .tiptap a {
   color: var(--accent);
   text-decoration: underline;
