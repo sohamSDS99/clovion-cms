@@ -613,4 +613,54 @@ export async function createAuthorProfile(
   return created;
 }
 
+/**
+ * Delete an author profile (FR-USER-02). Admin-only. Guarded so a delete can
+ * never orphan a byline or a login:
+ *   - a profile linked to a User account is managed via user removal, not here;
+ *   - a profile still used as the author on any content must be reassigned first
+ *     (ContentItem.authorProfileId is a required FK).
+ * A pure byline profile with no account and no content is hard-deleted.
+ */
+export async function deleteAuthorProfile(
+  actor: SessionUser,
+  profileId: string
+): Promise<void> {
+  assertCan(actor.role, "edit_others_author_profile");
+
+  const profile = await prisma.authorProfile.findUnique({
+    where: { id: profileId },
+    select: { id: true },
+  });
+  if (!profile) throw new NotFoundError("Author profile not found.");
+
+  const linkedUser = await prisma.user.findUnique({
+    where: { authorProfileId: profileId },
+    select: { id: true },
+  });
+  if (linkedUser) {
+    throw new ConflictError(
+      "This profile belongs to a user account — remove the user instead."
+    );
+  }
+
+  const refs = await prisma.contentItem.count({
+    where: { authorProfileId: profileId },
+  });
+  if (refs > 0) {
+    throw new ConflictError(
+      `This profile is the author on ${refs} content item${refs === 1 ? "" : "s"} — reassign them before deleting.`
+    );
+  }
+
+  await prisma.authorProfile.delete({ where: { id: profileId } });
+
+  await recordAudit({
+    actorId: actor.id,
+    entityType: "author_profile",
+    entityId: profileId,
+    action: "deleted",
+    diff: {},
+  });
+}
+
 export { AuthzError };
