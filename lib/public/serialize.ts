@@ -229,11 +229,19 @@ function buildJsonLdInput(
 /**
  * Full single-item serialization including rendered HTML and JSON-LD.
  * Renders `bodyHtml` from `body` when the cached column is empty.
+ *
+ * `avatarUrl` is the resolved public URL for the author's avatar asset. It is
+ * resolved by the query layer (the avatar is an FK-less asset reference, so it
+ * cannot be joined via Prisma `include`) and threaded in here so this stays a
+ * pure, synchronous function.
  */
-export function toPublicContent(item: ContentItemWithRelations): PublicContent {
+export function toPublicContent(
+  item: ContentItemWithRelations,
+  avatarUrl?: string | null,
+): PublicContent {
   const seo = toSeo(item);
   const coverImageUrl = item.coverAsset?.url ?? null;
-  const author = toAuthor(item.authorProfile, null);
+  const author = toAuthor(item.authorProfile, avatarUrl ?? null);
 
   const bodyHtml =
     item.bodyHtml && item.bodyHtml.length > 0
@@ -262,10 +270,13 @@ export function toPublicContent(item: ContentItemWithRelations): PublicContent {
 }
 
 /** Lightweight summary for list endpoints (no rendered body / jsonLd / typeData). */
-export function toPublicSummary(item: ContentItemWithRelations): PublicContentSummary {
+export function toPublicSummary(
+  item: ContentItemWithRelations,
+  avatarUrl?: string | null,
+): PublicContentSummary {
   const seo = toSeo(item);
   const coverImageUrl = item.coverAsset?.url ?? null;
-  const author = toAuthor(item.authorProfile, null);
+  const author = toAuthor(item.authorProfile, avatarUrl ?? null);
 
   return {
     id: item.id,

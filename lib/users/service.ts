@@ -10,6 +10,7 @@ import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { Prisma, type Role, type UserStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { resolveAvatarUrls } from "@/lib/public/query";
 import { assertCan, AuthzError } from "@/lib/auth/rbac";
 import type { SessionUser } from "@/lib/auth/guard";
 import { recordAudit } from "@/lib/audit/service";
@@ -415,6 +416,82 @@ export async function listAuthorProfiles(): Promise<
     orderBy: { displayName: "asc" },
     select: { id: true, displayName: true },
   });
+}
+
+/** Full author-profile row for the admin oversight screen (Admin only). */
+const adminProfileSelect = {
+  id: true,
+  displayName: true,
+  slug: true,
+  title: true,
+  bio: true,
+  avatarAssetId: true,
+  socialLinks: true,
+  isPublic: true,
+  isGhost: true,
+  createdAt: true,
+  createdById: true,
+} satisfies Prisma.AuthorProfileSelect;
+
+export interface AuthorProfileAdminRow {
+  id: string;
+  displayName: string;
+  slug: string;
+  title: string | null;
+  bio: string | null;
+  avatarAssetId: string | null;
+  avatarUrl: string | null;
+  socialLinks: Record<string, string>;
+  isPublic: boolean;
+  isGhost: boolean;
+  createdAt: string;
+  createdByEmail: string | null;
+}
+
+/**
+ * All author profiles with the columns the admin oversight screen needs
+ * (FR-USER-02). `createdById` is an FK-less UUID column, so the creator email is
+ * resolved via a single batched `in` lookup against User. Callers MUST gate this
+ * behind `edit_others_author_profile` in the route.
+ */
+export async function listAuthorProfilesAdmin(): Promise<AuthorProfileAdminRow[]> {
+  const rows = await prisma.authorProfile.findMany({
+    orderBy: { createdAt: "desc" },
+    select: adminProfileSelect,
+    // Bound the oversight listing so it can't load an unbounded table at once.
+    take: 500,
+  });
+
+  // Resolve createdById -> email via one batched lookup (no FK on the column).
+  const creatorIds = [
+    ...new Set(rows.map((r) => r.createdById).filter((v): v is string => !!v)),
+  ];
+  const creators = creatorIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: creatorIds } },
+        select: { id: true, email: true },
+      })
+    : [];
+  const emailById = new Map(creators.map((u) => [u.id, u.email]));
+
+  // Resolve avatar thumbnails (FK-less asset ids) in one batched lookup so the
+  // admin editor can show the current photo instead of a placeholder.
+  const avatars = await resolveAvatarUrls(rows.map((r) => r.avatarAssetId));
+
+  return rows.map((r) => ({
+    id: r.id,
+    displayName: r.displayName,
+    slug: r.slug,
+    title: r.title,
+    bio: r.bio,
+    avatarAssetId: r.avatarAssetId,
+    avatarUrl: r.avatarAssetId ? avatars.get(r.avatarAssetId) ?? null : null,
+    socialLinks: (r.socialLinks ?? {}) as Record<string, string>,
+    isPublic: r.isPublic,
+    isGhost: r.isGhost,
+    createdAt: r.createdAt.toISOString(),
+    createdByEmail: r.createdById ? emailById.get(r.createdById) ?? null : null,
+  }));
 }
 
 /**

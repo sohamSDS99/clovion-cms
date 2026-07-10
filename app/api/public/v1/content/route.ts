@@ -17,7 +17,7 @@
 
 import { z } from "zod";
 import { withRoute, json, parseQuery } from "@/lib/api/http";
-import { listPublished } from "@/lib/public/query";
+import { listPublished, resolveAvatarUrls, avatarUrlFor } from "@/lib/public/query";
 import { toPublicSummary } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
 
@@ -35,8 +35,13 @@ export const GET = withRoute(async (req: Request) => {
 
   const { items, nextCursor } = await listPublished({ type, limit, cursor });
 
+  // Resolve author avatars in one batched query (avoids N+1), then serialize.
+  const avatars = await resolveAvatarUrls(
+    items.map((it) => it.authorProfile?.avatarAssetId),
+  );
+
   const res = json({
-    data: items.map(toPublicSummary),
+    data: items.map((it) => toPublicSummary(it, avatarUrlFor(it, avatars))),
     pagination: { nextCursor, limit },
   });
   // Listing pages are cheap to revalidate and high-traffic — favour a longer

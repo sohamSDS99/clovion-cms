@@ -75,8 +75,10 @@ export const updateAuthorProfileSchema = z
       .max(160)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens.")
       .optional(),
-    title: z.string().trim().max(120).optional(),
-    bio: z.string().trim().max(2000).optional(),
+    // Clearable text fields accept null so the UI can reset them to the same
+    // NULL invite/self-service profiles are created with (not an empty string).
+    title: z.string().trim().max(120).nullable().optional(),
+    bio: z.string().trim().max(500).nullable().optional(),
     socialLinks: socialLinksSchema.optional(),
     avatarAssetId: z.string().uuid().nullable().optional(),
     isPublic: z.boolean().optional(),
