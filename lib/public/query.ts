@@ -61,6 +61,25 @@ export async function resolveAvatarUrl(
   return map.get(assetId) ?? null;
 }
 
+/**
+ * Resolve a RESOURCE/RESEARCH item's downloadable file (`typeData.pdfAssetId`)
+ * to its public URL. Returns null for non-resource types or when unset/deleted.
+ * Gating is enforced by the serializer — this only resolves the asset URL, so
+ * the caller can pass it straight into `toPublicContent`.
+ */
+export async function resolveResourceDownloadUrl(
+  item: ContentItemWithRelations,
+): Promise<string | null> {
+  const td = (item.typeData ?? {}) as Record<string, unknown>;
+  const pdfAssetId = typeof td.pdfAssetId === "string" ? td.pdfAssetId : null;
+  if (!pdfAssetId) return null;
+  const asset = await prisma.mediaAsset.findFirst({
+    where: { id: pdfAssetId, deletedAt: null },
+    select: { url: true },
+  });
+  return asset?.url ?? null;
+}
+
 /** The resolved avatar URL for a content item's author, given a resolved map. */
 export function avatarUrlFor(
   item: ContentItemWithRelations,

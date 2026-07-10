@@ -12,7 +12,11 @@
 
 import { z } from "zod";
 import { withRoute, json, parseQuery, NotFoundError } from "@/lib/api/http";
-import { getPublishedByTypeSlug, resolveAvatarUrl } from "@/lib/public/query";
+import {
+  getPublishedByTypeSlug,
+  resolveAvatarUrl,
+  resolveResourceDownloadUrl,
+} from "@/lib/public/query";
 import { toPublicContent } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
 
@@ -39,7 +43,8 @@ export const GET = withRoute(
     if (!item) throw new NotFoundError("Published content not found.");
 
     const avatarUrl = await resolveAvatarUrl(item.authorProfile?.avatarAssetId);
-    const payload = toPublicContent(item, avatarUrl);
+    const downloadUrl = await resolveResourceDownloadUrl(item);
+    const payload = toPublicContent(item, avatarUrl, downloadUrl);
 
     const res = json({ data: payload });
     // Respect noIndex: do not let the edge cache pages flagged noindex.

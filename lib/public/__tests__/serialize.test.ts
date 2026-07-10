@@ -10,7 +10,11 @@
  */
 import { describe, expect, it } from "vitest";
 import type { AuthorProfile } from "@prisma/client";
-import { toPublicSummary, type ContentItemWithRelations } from "../serialize";
+import {
+  toPublicContent,
+  toPublicSummary,
+  type ContentItemWithRelations,
+} from "../serialize";
 
 function author(overrides: Partial<AuthorProfile> = {}): AuthorProfile {
   return {
@@ -79,5 +83,30 @@ describe("toPublicSummary author byline", () => {
   it("has no author byline when the item has no profile", () => {
     const out = toPublicSummary(item(null));
     expect(out.author).toBeNull();
+  });
+});
+
+// The resource file is stored as `typeData.pdfAssetId`; the query layer resolves
+// it to a public URL and threads it into the serializer. Regression guard: an
+// ungated resource must expose that URL, and a gated one must NEVER leak it
+// (NFR-SEC-03), even when a URL is resolved and passed in.
+describe("toPublicContent resource download URL", () => {
+  function resource(typeData: Record<string, unknown>): ContentItemWithRelations {
+    return { ...item(null), type: "RESOURCE", typeData } as ContentItemWithRelations;
+  }
+  const url = "https://cdn.example/report.pdf";
+
+  it("exposes the resolved download URL for an ungated resource", () => {
+    const out = toPublicContent(resource({ pdfAssetId: "a1" }), null, url);
+    expect(out.typeData.downloadUrl).toBe(url);
+  });
+
+  it("never leaks the download URL for a gated resource", () => {
+    const out = toPublicContent(
+      resource({ pdfAssetId: "a1", gated: true, leadFormId: "lf1" }),
+      null,
+      url,
+    );
+    expect(out.typeData.downloadUrl).toBeUndefined();
   });
 });
