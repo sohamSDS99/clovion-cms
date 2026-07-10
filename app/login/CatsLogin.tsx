@@ -557,13 +557,10 @@ export default function CatsLogin({
         </div>
 
         <div className="relative z-10">
-          <h2 className="max-w-md font-display text-[2.6rem] leading-[1.05] tracking-tight">
-            Crunch time at Clovion.
+          <h2 className="max-w-lg font-display text-[2.15rem] leading-[1.12] tracking-tight">
+            The Content Team Has Been Busy Lately &amp; The Stress Level of The
+            Leader is Over 9000!
           </h2>
-          <p className="mt-3 max-w-sm text-sm text-white/70">
-            The team&apos;s been shipping all night and tempers are gone. Hover a
-            cat to make it worse. The grey one has a limit — wait for it.
-          </p>
         </div>
 
         {/* the desk of feuding cats */}
