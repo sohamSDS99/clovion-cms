@@ -45,7 +45,7 @@ import { useAiGeneration, type GenerateArgs } from "./useAiGeneration";
 import type { AiInsertPayload, InsertStrategy } from "./AiWritePanel";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
-type InspectorTab = "details" | "seo" | "ai";
+type InspectorTab = "details" | "seo" | "faq" | "ai";
 
 interface AuthorOption {
   id: string;
@@ -109,13 +109,13 @@ export function EditorWorkspace({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleErr, setScheduleErr] = useState<string | null>(null);
-  const [faqOpen, setFaqOpen] = useState(false);
 
   const meta = statusBadge(item.status);
   const counts = useMemo(() => wordCount(draft.body), [draft.body]);
 
-  // Optional embeddable FAQ section (below the body, article-shaped types only).
-  // The FAQ content type manages its own Q&A via TypeFields, so it's excluded.
+  // Optional embeddable FAQ section — lives in its own inspector tab (keeps the
+  // article body clean). Article-shaped types only; the FAQ content type manages
+  // its own Q&A via TypeFields in Details, so it's excluded here.
   const supportsFaq =
     item.type === "BLOG" ||
     item.type === "RESEARCH" ||
@@ -124,7 +124,6 @@ export function EditorWorkspace({
   const faqItems: FaqItem[] = Array.isArray(draft.typeData.faqItems)
     ? (draft.typeData.faqItems as FaqItem[])
     : [];
-  const faqVisible = supportsFaq && (faqOpen || faqItems.length > 0);
 
   // Lifecycle actions valid for the current status, role-gated for UX.
   const lifecycle = actionsForStatus(item.status).map((spec) => ({
@@ -282,39 +281,11 @@ export function EditorWorkspace({
             onReady={onEditorReady}
             placeholder="Start writing..."
           />
-          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line px-6 py-2 text-xs text-ink-mute">
-            {supportsFaq ? (
-              <button
-                type="button"
-                onClick={() => setFaqOpen(true)}
-                className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-medium text-accent hover:bg-accent-soft"
-              >
-                <span aria-hidden="true">＋</span> Add FAQ
-              </button>
-            ) : (
-              <span />
-            )}
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-6 py-2 text-xs text-ink-mute">
             <span>
               {counts.words} words · {counts.chars} characters
             </span>
           </div>
-
-          {faqVisible ? (
-            <div className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line px-6 py-4">
-              <FaqSection
-                contentId={contentId}
-                contentType={item.type as ContentType}
-                items={faqItems}
-                onChange={(next) =>
-                  update({ typeData: { ...draft.typeData, faqItems: next } })
-                }
-                error={gateErrors["typeData.faqItems"]}
-                title="Frequently Asked Questions"
-                emptyTitle="No questions yet"
-                emptyBody="Add common reader questions, or generate them from the article with AI. Each pair also feeds FAQPage schema."
-              />
-            </div>
-          ) : null}
         </div>
 
         {/* Inspector */}
@@ -330,6 +301,11 @@ export function EditorWorkspace({
             <TabButton active={tab === "seo"} onClick={() => setTab("seo")}>
               SEO
             </TabButton>
+            {supportsFaq ? (
+              <TabButton active={tab === "faq"} onClick={() => setTab("faq")}>
+                FAQ
+              </TabButton>
+            ) : null}
             <TabButton active={tab === "ai"} onClick={() => setTab("ai")}>
               AI Writer
             </TabButton>
@@ -357,6 +333,19 @@ export function EditorWorkspace({
                 />
                 <SchemaPanel contentId={contentId} initialSchema={initialSchema} />
               </div>
+            ) : tab === "faq" ? (
+              <FaqSection
+                contentId={contentId}
+                contentType={item.type as ContentType}
+                items={faqItems}
+                onChange={(next) =>
+                  update({ typeData: { ...draft.typeData, faqItems: next } })
+                }
+                error={gateErrors["typeData.faqItems"]}
+                title="Frequently Asked Questions"
+                emptyTitle="No questions yet"
+                emptyBody="Add common reader questions, or generate them from the article with AI. Each pair also feeds FAQPage schema."
+              />
             ) : (
               <AiWriterTab
                 contentId={contentId}
@@ -427,10 +416,20 @@ function DetailsTab({
         />
       ) : null}
 
-      <CoverField
-        coverAssetId={draft.coverAssetId}
+      <ImageField
+        label="Cover image"
+        assetId={draft.coverAssetId}
         onChange={(id) => update({ coverAssetId: id })}
         error={gateErrors.coverAssetId}
+      />
+
+      <ImageField
+        label="Social share image"
+        hint="Used only when this page is shared on social media (Open Graph). Falls back to the cover image if left empty."
+        assetId={(draft.seo.ogImageAssetId as string | undefined) ?? null}
+        onChange={(id) =>
+          update({ seo: { ...draft.seo, ogImageAssetId: id ?? undefined } })
+        }
       />
 
       <div>
@@ -504,13 +503,17 @@ function DetailsTab({
   );
 }
 
-/* ── Cover field (inline dashed uploader matching the screenshot) ───────── */
-function CoverField({
-  coverAssetId,
+/* ── Image field (inline dashed uploader) — used for cover + OG share image ─ */
+function ImageField({
+  label,
+  hint,
+  assetId,
   onChange,
   error,
 }: {
-  coverAssetId: string | null;
+  label: string;
+  hint?: string;
+  assetId: string | null;
   onChange: (id: string | null) => void;
   error?: string;
 }) {
@@ -518,30 +521,31 @@ function CoverField({
   const [asset, setAsset] = useState<MediaAsset | null>(null);
 
   useEffect(() => {
-    if (!coverAssetId) {
+    if (!assetId) {
       setAsset(null);
       return;
     }
     let active = true;
     api
-      .get<MediaAsset>(`/api/media/${coverAssetId}`)
+      .get<MediaAsset>(`/api/media/${assetId}`)
       .then((a) => active && setAsset(a))
       .catch(() => active && setAsset(null));
     return () => {
       active = false;
     };
-  }, [coverAssetId]);
+  }, [assetId]);
 
   return (
     <div>
-      <Label>Cover image</Label>
-      {coverAssetId ? (
+      <Label>{label}</Label>
+      {hint ? <p className="mb-1.5 text-xs text-ink-mute">{hint}</p> : null}
+      {assetId ? (
         <div className="space-y-2">
           <div className="overflow-hidden rounded-lg border border-line bg-paper-sunken">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={asset?.variants?.md ?? asset?.url}
-              alt={asset?.altText ?? "Cover image"}
+              alt={asset?.altText ?? label}
               className="aspect-[16/9] w-full object-cover"
             />
           </div>
@@ -563,7 +567,7 @@ function CoverField({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" />
           </svg>
-          <span className="text-sm font-medium">Upload cover</span>
+          <span className="text-sm font-medium">Upload image</span>
         </button>
       )}
       {error ? <p className="mt-1 text-xs text-danger" role="alert">{error}</p> : null}
@@ -572,7 +576,7 @@ function CoverField({
         open={open}
         onClose={() => setOpen(false)}
         kind="IMAGE"
-        title="Choose cover image"
+        title={`Choose ${label.toLowerCase()}`}
         onPick={(a) => {
           onChange(a.id);
           setOpen(false);
