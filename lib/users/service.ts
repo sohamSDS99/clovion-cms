@@ -29,6 +29,7 @@ import {
 } from "./logic";
 import type {
   AcceptInviteInput,
+  CreateAuthorProfileInput,
   InviteUserInput,
   UpdateAuthorProfileInput,
   UpdateUserInput,
@@ -557,6 +558,59 @@ export async function updateAuthorProfile(
   });
 
   return updated;
+}
+
+/**
+ * Create a login-less byline author profile directly (FR-USER-02, PRD Q1).
+ * Admin-only (`edit_others_author_profile`). The profile has no linked User
+ * (isGhost) and can be used as a byline immediately. Slug is taken from the
+ * input when provided (must be unique) or derived from the display name.
+ */
+export async function createAuthorProfile(
+  actor: SessionUser,
+  input: CreateAuthorProfileInput
+): Promise<AuthorProfilePayload> {
+  assertCan(actor.role, "edit_others_author_profile");
+
+  const created = await prisma.$transaction(async (tx) => {
+    let slug: string;
+    if (input.slug) {
+      const clash = await tx.authorProfile.findUnique({
+        where: { slug: input.slug },
+        select: { id: true },
+      });
+      if (clash) throw new ConflictError("That slug is already in use.");
+      slug = input.slug;
+    } else {
+      slug = await uniqueAuthorSlug(tx, input.displayName);
+    }
+
+    return tx.authorProfile.create({
+      data: {
+        displayName: input.displayName,
+        slug,
+        title: input.title ?? null,
+        bio: input.bio ?? null,
+        socialLinks: (input.socialLinks ?? {}) as Prisma.InputJsonValue,
+        avatarAssetId: input.avatarAssetId ?? null,
+        isPublic: input.isPublic ?? false,
+        isGhost: true, // login-less byline created directly by an admin
+        createdById: actor.id,
+        updatedById: actor.id,
+      },
+      select: profileSelect,
+    });
+  });
+
+  await recordAudit({
+    actorId: actor.id,
+    entityType: "author_profile",
+    entityId: created.id,
+    action: "created",
+    diff: { ghost: true, fields: Object.keys(input) },
+  });
+
+  return created;
 }
 
 export { AuthzError };
