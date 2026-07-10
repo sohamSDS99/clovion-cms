@@ -3,7 +3,7 @@
 import { TitleSlug } from "../parts/TitleSlug";
 import { BodyEditor } from "../parts/BodyEditor";
 import { DeleteLink } from "../parts/DeleteLink";
-import { FaqQuestions } from "../parts/FaqQuestions";
+import { FaqSection } from "../parts/FaqSection";
 import { CoverImage } from "../CoverImage";
 import { SeoPanel } from "../SeoPanel";
 import { SchemaPanel } from "../SchemaPanel";
@@ -45,7 +45,9 @@ export function FaqLayout({
           />
         </div>
 
-        <FaqQuestions
+        <FaqSection
+          contentId={contentId}
+          contentType={item.type}
           items={faqItems}
           onChange={(next) =>
             update({ typeData: { ...draft.typeData, faqItems: next } })

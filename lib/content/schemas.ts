@@ -52,8 +52,21 @@ const uuid = z.string().uuid();
 
 // ── Per-type `typeData` schemas (single-table inheritance) ────────────────────
 
-/** BLOG has no extra structured fields. */
-export const blogTypeDataSchema = z.object({}).passthrough();
+/** A single FAQ entry stored under `typeData.faqItems`. */
+export const faqItemSchema = z.object({
+  question: z.string().min(1),
+  answer: z.string().min(1),
+});
+
+/**
+ * Optional embeddable FAQ section. Every article-shaped type (BLOG, RESEARCH,
+ * NEWS, RESOURCE) can carry a Q&A section in addition to its body; the FAQ type
+ * uses the same field as its primary content (see faqTypeDataSchema).
+ */
+const faqItemsField = { faqItems: z.array(faqItemSchema).optional() };
+
+/** BLOG has no extra structured fields beyond the optional FAQ section. */
+export const blogTypeDataSchema = z.object({ ...faqItemsField }).passthrough();
 
 /** WEBINAR: scheduling + registration details. */
 export const webinarTypeDataSchema = z
@@ -76,26 +89,22 @@ export const resourceTypeDataSchema = z
     pdfAssetId: uuid.optional(),
     gated: z.boolean().optional(),
     fileSizeLabel: z.string().optional(),
+    ...faqItemsField,
   })
   .passthrough();
 
-/** FAQ: a list of question/answer items. */
-export const faqItemSchema = z.object({
-  question: z.string().min(1),
-  answer: z.string().min(1),
-});
+/** FAQ: a list of question/answer items is the primary content. */
 export const faqTypeDataSchema = z
-  .object({
-    faqItems: z.array(faqItemSchema).optional(),
-  })
+  .object({ ...faqItemsField })
   .passthrough();
 
-/** NEWS: external source attribution. */
+/** NEWS: external source attribution (+ optional FAQ section). */
 export const newsTypeDataSchema = z
   .object({
     sourceUrl: z.string().url().optional(),
     dateline: z.string().optional(),
     sourceName: z.string().optional(),
+    ...faqItemsField,
   })
   .passthrough();
 

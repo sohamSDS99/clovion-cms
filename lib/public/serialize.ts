@@ -194,6 +194,9 @@ function toPublicTypeData(
   downloadUrl?: string | null,
 ): Record<string, unknown> {
   const td = (item.typeData ?? {}) as Record<string, unknown>;
+  // Optional embeddable FAQ section — exposed for every article-shaped type so
+  // the public site can render it (and build FAQPage schema from it) below the body.
+  const faqItems = Array.isArray(td.faqItems) ? td.faqItems : [];
 
   switch (item.type) {
     case "WEBINAR":
@@ -206,7 +209,7 @@ function toPublicTypeData(
         durationMinutes: td.durationMinutes,
       };
     case "FAQ":
-      return { faqItems: Array.isArray(td.faqItems) ? td.faqItems : [] };
+      return { faqItems };
     // RESOURCE is a gated downloadable report. A gated item NEVER emits its
     // file/pdf URL (NFR-SEC-03/NG3). RESEARCH is a plain article → default case.
     case "RESOURCE": {
@@ -217,6 +220,7 @@ function toPublicTypeData(
         fileLabel: td.fileLabel,
         gated,
         leadFormId: td.leadFormId,
+        faqItems,
       };
       // NFR-SEC-03 / NG3: surface the download URL ONLY for ungated items.
       // The file is stored as `pdfAssetId` (a MediaAsset ref) which the query
@@ -231,11 +235,12 @@ function toPublicTypeData(
       return base;
     }
     case "NEWS":
-      return { source: td.source, sourceUrl: td.sourceUrl };
+      return { source: td.source, sourceUrl: td.sourceUrl, faqItems };
     case "BLOG":
     default:
-      // Blogs carry no extra public structured fields by default.
-      return {};
+      // BLOG/RESEARCH carry no extra public structured fields beyond the
+      // optional FAQ section.
+      return { faqItems };
   }
 }
 
