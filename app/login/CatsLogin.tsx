@@ -557,8 +557,8 @@ export default function CatsLogin({
 
         <div className="relative z-10">
           <h2 className="max-w-lg font-display text-[2.15rem] leading-[1.12] tracking-tight">
-            The Content Team Has Been Busy Lately &amp; The Stress Level of The
-            Leader is Over 9000!
+            The Content Team Has Been Busy Lately &amp; Someones Stress Level is
+            Over 9000!
           </h2>
         </div>
 
