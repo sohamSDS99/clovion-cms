@@ -157,7 +157,10 @@ function isGatedResource(item: ContentItem): boolean {
  * Build the per-type public `typeData`. This re-projects only the keys that are
  * safe to publish; in particular a gated RESOURCE never emits its file/pdf URL.
  */
-function toPublicTypeData(item: ContentItem): Record<string, unknown> {
+function toPublicTypeData(
+  item: ContentItem,
+  downloadUrl?: string | null,
+): Record<string, unknown> {
   const td = (item.typeData ?? {}) as Record<string, unknown>;
 
   switch (item.type) {
@@ -185,8 +188,14 @@ function toPublicTypeData(item: ContentItem): Record<string, unknown> {
         leadFormId: td.leadFormId,
       };
       // NFR-SEC-03 / NG3: surface the download URL ONLY for ungated items.
-      if (!gated && typeof td.downloadUrl === "string") {
-        base.downloadUrl = td.downloadUrl;
+      // The file is stored as `pdfAssetId` (a MediaAsset ref) which the query
+      // layer resolves to a public URL and threads in here; fall back to a
+      // literal `downloadUrl` string if one was set directly on typeData.
+      if (!gated) {
+        const resolved =
+          downloadUrl ??
+          (typeof td.downloadUrl === "string" ? td.downloadUrl : undefined);
+        if (resolved) base.downloadUrl = resolved;
       }
       return base;
     }
@@ -238,6 +247,7 @@ function buildJsonLdInput(
 export function toPublicContent(
   item: ContentItemWithRelations,
   avatarUrl?: string | null,
+  downloadUrl?: string | null,
 ): PublicContent {
   const seo = toSeo(item);
   const coverImageUrl = item.coverAsset?.url ?? null;
@@ -265,7 +275,7 @@ export function toPublicContent(
     author,
     tags: toTags(item.tags),
     category: toCategory(item.category),
-    typeData: toPublicTypeData(item),
+    typeData: toPublicTypeData(item, downloadUrl),
   };
 }
 

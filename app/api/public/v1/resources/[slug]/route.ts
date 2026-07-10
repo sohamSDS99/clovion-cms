@@ -12,7 +12,11 @@
  */
 import { z } from "zod";
 import { withRoute, json, parseQuery, NotFoundError } from "@/lib/api/http";
-import { getPublishedGatedBySlug, resolveAvatarUrl } from "@/lib/public/query";
+import {
+  getPublishedGatedBySlug,
+  resolveAvatarUrl,
+  resolveResourceDownloadUrl,
+} from "@/lib/public/query";
 import { toPublicContent } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
 import { prisma } from "@/lib/db/prisma";
@@ -37,7 +41,8 @@ export const GET = withRoute(
 
     // Shared serializer already enforces "no PDF URL for gated resources".
     const avatarUrl = await resolveAvatarUrl(item.authorProfile?.avatarAssetId);
-    const payload = toPublicContent(item, avatarUrl);
+    const downloadUrl = await resolveResourceDownloadUrl(item);
+    const payload = toPublicContent(item, avatarUrl, downloadUrl);
 
     // When gated, attach the lead form definition (fields only) for rendering.
     const gate = readResourceGate(item.typeData);
