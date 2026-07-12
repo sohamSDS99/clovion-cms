@@ -83,7 +83,15 @@ export function MediaPicker({
           ref={fileRef}
           type="file"
           hidden
-          accept={kind === "IMAGE" ? "image/*" : kind === "PDF" ? "application/pdf" : undefined}
+          accept={
+            kind === "IMAGE"
+              ? "image/*"
+              : kind === "PDF"
+                ? "application/pdf"
+                : kind === "VIDEO"
+                  ? "video/mp4,video/webm"
+                  : undefined
+          }
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) upload(f);

@@ -217,6 +217,10 @@ function toPublicTypeData(
         registrationUrl: td.registrationUrl,
         speakers: td.speakers,
         durationMinutes: td.durationMinutes,
+        recordingUrl: td.recordingUrl,
+        // Uploaded webinar video (typeData.videoAssetId) resolved to its
+        // public URL by the query layer — webinars are never gated.
+        videoUrl: downloadUrl ?? undefined,
       };
     // RESOURCE is a gated downloadable report. A gated item NEVER emits its
     // file/pdf URL (NFR-SEC-03/NG3).
