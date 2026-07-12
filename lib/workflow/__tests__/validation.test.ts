@@ -67,11 +67,10 @@ describe("validateForPublish — passing cases per type", () => {
     expect(res.ok).toBe(true);
   });
 
-  it("FAQ passes with non-empty faqItems", () => {
-    const res = validateForPublish(
-      base({ type: "FAQ", typeData: { faqItems: [{ q: "q", a: "a" }] } })
-    );
+  it("FAQ publishes as an article — no faqItems required", () => {
+    const res = validateForPublish(base({ type: "FAQ", typeData: {} }));
     expect(res.ok).toBe(true);
+    expect(fields(res.errors)).not.toContain("typeData.faqItems");
   });
 });
 
@@ -137,15 +136,8 @@ describe("validateForPublish — SEO meta", () => {
   });
 });
 
-describe("validateForPublish — cover image (error for BLOG, warning otherwise)", () => {
-  it("BLOG without cover is an error", () => {
-    const res = validateForPublish(base({ type: "BLOG", coverAssetId: null }));
-    expect(res.ok).toBe(false);
-    expect(fields(res.errors)).toContain("coverAssetId");
-    expect(fields(res.warnings)).not.toContain("coverAssetId");
-  });
-
-  it.each(["NEWS", "WEBINAR", "RESOURCE", "FAQ"] as ContentType[])(
+describe("validateForPublish — cover image (warning for every type)", () => {
+  it.each(["BLOG", "RESEARCH", "NEWS", "WEBINAR", "RESOURCE", "FAQ"] as ContentType[])(
     "%s without cover is only a warning",
     (type) => {
       const typeData =
@@ -153,9 +145,7 @@ describe("validateForPublish — cover image (error for BLOG, warning otherwise)
           ? { pdfAssetId: "p" }
           : type === "WEBINAR"
             ? { startAt: "t", registrationUrl: "u" }
-            : type === "FAQ"
-              ? { faqItems: [{ q: "q" }] }
-              : {};
+            : {};
       const res = validateForPublish(base({ type, coverAssetId: null, typeData }));
       expect(fields(res.warnings)).toContain("coverAssetId");
       expect(fields(res.errors)).not.toContain("coverAssetId");
@@ -185,16 +175,10 @@ describe("validateForPublish — type-specific requirements", () => {
     expect(fields(res.errors)).not.toContain("typeData.startAt");
   });
 
-  it("FAQ empty faqItems array is an error", () => {
+  it("FAQ empty faqItems is not an error (article-shaped, body is the content)", () => {
     const res = validateForPublish(base({ type: "FAQ", typeData: { faqItems: [] } }));
-    expect(fields(res.errors)).toContain("typeData.faqItems");
-  });
-
-  it("FAQ non-array faqItems is an error", () => {
-    const res = validateForPublish(
-      base({ type: "FAQ", typeData: { faqItems: "nope" } })
-    );
-    expect(fields(res.errors)).toContain("typeData.faqItems");
+    expect(fields(res.errors)).not.toContain("typeData.faqItems");
+    expect(res.ok).toBe(true);
   });
 });
 

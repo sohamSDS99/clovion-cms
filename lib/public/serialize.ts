@@ -218,10 +218,8 @@ function toPublicTypeData(
         speakers: td.speakers,
         durationMinutes: td.durationMinutes,
       };
-    case "FAQ":
-      return { faqItems };
     // RESOURCE is a gated downloadable report. A gated item NEVER emits its
-    // file/pdf URL (NFR-SEC-03/NG3). RESEARCH is a plain article → default case.
+    // file/pdf URL (NFR-SEC-03/NG3).
     case "RESOURCE": {
       const gated = isGatedResource(item);
       const base: Record<string, unknown> = {
@@ -248,8 +246,8 @@ function toPublicTypeData(
       return { source: td.source, sourceUrl: td.sourceUrl, faqItems };
     case "BLOG":
     default:
-      // BLOG/RESEARCH carry no extra public structured fields beyond the
-      // optional FAQ section.
+      // BLOG/RESEARCH/FAQ carry no extra public structured fields beyond the
+      // FAQ section.
       return { faqItems };
   }
 }

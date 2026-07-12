@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { withRoute, json, parseQuery, NotFoundError } from "@/lib/api/http";
 import {
-  getPublishedGatedBySlug,
+  getPublishedByTypeSlug,
   resolveAvatarUrl,
   resolveResourceDownloadUrl,
   resolveOgImageUrl,
@@ -35,9 +35,7 @@ export const GET = withRoute(
       paramsSchema,
     );
 
-    // Resolves a published RESOURCE or RESEARCH by slug — both are gated
-    // downloads served from this endpoint under one /resources URL space.
-    const item = await getPublishedGatedBySlug(slug);
+    const item = await getPublishedByTypeSlug("RESOURCE", slug);
     if (!item) throw new NotFoundError("Published resource not found.");
 
     // Shared serializer already enforces "no PDF URL for gated resources".
