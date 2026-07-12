@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Loading, InlineError, EmptyState } from "@/components/ui/Feedback";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { cn } from "@/lib/ui/cn";
 import { InviteDialog } from "@/components/users/InviteDialog";
 import { AuthorProfileCreateModal } from "./AuthorProfileCreateModal";
 import { api, errorMessage } from "@/lib/ui/client";
@@ -18,8 +17,6 @@ import type { AuthorProfileAdminRow } from "./types";
 interface ListResponse {
   profiles: AuthorProfileAdminRow[];
 }
-
-const ALL = "__all__";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -47,17 +44,14 @@ function initialsOf(name: string): string {
 
 /**
  * Admin → Author Profiles oversight screen (FR-USER-02). Lists every author
- * profile with live client-side search + a filter rail (by job title / by
- * created-by email). "Add Author Profile" reuses the invite flow (a non-viewer
- * invite auto-creates a paired profile); per-row Edit opens the admin editor.
- * The listing API is capability-gated server-side.
+ * profile with live client-side search. "Add Author Profile" reuses the invite
+ * flow (a non-viewer invite auto-creates a paired profile); per-row Edit opens
+ * the admin editor. The listing API is capability-gated server-side.
  */
 export function AuthorProfilesManager() {
   const [rows, setRows] = useState<AuthorProfileAdminRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [titleFilter, setTitleFilter] = useState<string>(ALL);
-  const [creatorFilter, setCreatorFilter] = useState<string>(ALL);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AuthorProfileAdminRow | null>(null);
@@ -92,46 +86,11 @@ export function AuthorProfilesManager() {
 
   useEffect(load, []);
 
-  // Unique job titles + creator emails for the filter rail.
-  const titleChips = useMemo(() => {
-    if (!rows) return [];
-    const set = new Set<string>();
-    for (const r of rows) if (r.title?.trim()) set.add(r.title.trim());
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [rows]);
-
-  const creatorChips = useMemo(() => {
-    if (!rows) return [];
-    const set = new Set<string>();
-    for (const r of rows) if (r.createdByEmail) set.add(r.createdByEmail);
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [rows]);
-
-  // If an edit removes the currently-selected facet value from the chip list,
-  // reset it to All so the table doesn't silently render "No matches" with no
-  // visibly-active chip.
-  useEffect(() => {
-    if (titleFilter !== ALL && !titleChips.includes(titleFilter)) {
-      setTitleFilter(ALL);
-    }
-  }, [titleChips, titleFilter]);
-  useEffect(() => {
-    if (creatorFilter !== ALL && !creatorChips.includes(creatorFilter)) {
-      setCreatorFilter(ALL);
-    }
-  }, [creatorChips, creatorFilter]);
-
   const filtered = useMemo(() => {
     if (!rows) return [];
     const q = search.trim().toLowerCase();
+    if (!q) return rows;
     return rows.filter((r) => {
-      if (titleFilter !== ALL && (r.title?.trim() ?? "") !== titleFilter) {
-        return false;
-      }
-      if (creatorFilter !== ALL && r.createdByEmail !== creatorFilter) {
-        return false;
-      }
-      if (!q) return true;
       const hay = [
         r.displayName,
         r.title ?? "",
@@ -142,7 +101,7 @@ export function AuthorProfilesManager() {
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, search, titleFilter, creatorFilter]);
+  }, [rows, search]);
 
   function patchRow(updated: AuthorProfileAdminRow) {
     setRows((prev) =>
@@ -165,9 +124,7 @@ export function AuthorProfilesManager() {
         ) : rows === null ? (
           <Loading label="Loading author profiles…" />
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_16rem]">
-            {/* Main column */}
-            <Card className="overflow-hidden">
+          <Card className="overflow-hidden">
               {/* Header: count + search + add */}
               <div className="flex flex-col gap-3 border-b border-line px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
@@ -216,7 +173,7 @@ export function AuthorProfilesManager() {
                 <div className="px-6 py-10">
                   <EmptyState
                     title="No matches"
-                    description="No author profiles match your search or filters."
+                    description="No author profiles match your search."
                   />
                 </div>
               ) : (
@@ -317,24 +274,7 @@ export function AuthorProfilesManager() {
                   </table>
                 </div>
               )}
-            </Card>
-
-            {/* Filter rail */}
-            <aside className="flex flex-col gap-5 lg:sticky lg:top-6 lg:self-start">
-              <FilterGroup
-                label="By job title"
-                chips={titleChips}
-                value={titleFilter}
-                onChange={setTitleFilter}
-              />
-              <FilterGroup
-                label="By created by"
-                chips={creatorChips}
-                value={creatorFilter}
-                onChange={setCreatorFilter}
-              />
-            </aside>
-          </div>
+          </Card>
         )}
       </PageBody>
 
@@ -386,63 +326,6 @@ export function AuthorProfilesManager() {
         onSaved={patchRow}
       />
     </>
-  );
-}
-
-/* ── Filter rail group ──────────────────────────────────────────────────── */
-function FilterGroup({
-  label,
-  chips,
-  value,
-  onChange,
-}: {
-  label: string;
-  chips: string[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="rounded-xl border border-line bg-paper-raised p-4 shadow-card">
-      <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
-        {label}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        <Chip active={value === ALL} onClick={() => onChange(ALL)}>
-          All
-        </Chip>
-        {chips.map((c) => (
-          <Chip key={c} active={value === c} onClick={() => onChange(c)}>
-            {c}
-          </Chip>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "max-w-full truncate rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-        active
-          ? "border-accent bg-accent-soft text-accent-ink"
-          : "border-line-strong bg-paper-raised text-ink-soft hover:border-accent hover:text-ink"
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
