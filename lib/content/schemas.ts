@@ -67,7 +67,7 @@ const faqItemsField = { faqItems: z.array(faqItemSchema).optional() };
 /** BLOG has no extra structured fields beyond the optional FAQ section. */
 export const blogTypeDataSchema = z.object({ ...faqItemsField }).passthrough();
 
-/** WEBINAR: scheduling + registration details. */
+/** WEBINAR: scheduling + registration details (+ uploaded video). */
 export const webinarTypeDataSchema = z
   .object({
     startAt: z.string().datetime().optional(),
@@ -76,6 +76,8 @@ export const webinarTypeDataSchema = z
     registrationUrl: z.string().url().optional(),
     speakerNames: z.array(z.string()).optional(),
     recordingUrl: z.string().url().optional(),
+    /** Uploaded webinar video (MediaAsset ref, kind VIDEO). */
+    videoAssetId: uuid.optional(),
   })
   .passthrough();
 

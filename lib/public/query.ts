@@ -62,16 +62,22 @@ export async function resolveAvatarUrl(
 }
 
 /**
- * Resolve a RESOURCE item's downloadable file (`typeData.pdfAssetId`)
- * to its public URL. Returns null for non-resource types or when unset/deleted.
- * Gating is enforced by the serializer — this only resolves the asset URL, so
- * the caller can pass it straight into `toPublicContent`.
+ * Resolve an item's attached media file — a RESOURCE's downloadable PDF
+ * (`typeData.pdfAssetId`) or a WEBINAR's uploaded video (`typeData.videoAssetId`)
+ * — to its public URL. Returns null when unset/deleted. Gating is enforced by
+ * the serializer — this only resolves the asset URL, so the caller can pass it
+ * straight into `toPublicContent`.
  */
 export async function resolveResourceDownloadUrl(
   item: ContentItemWithRelations,
 ): Promise<string | null> {
   const td = (item.typeData ?? {}) as Record<string, unknown>;
-  const pdfAssetId = typeof td.pdfAssetId === "string" ? td.pdfAssetId : null;
+  const pdfAssetId =
+    typeof td.pdfAssetId === "string"
+      ? td.pdfAssetId
+      : typeof td.videoAssetId === "string"
+        ? td.videoAssetId
+        : null;
   if (!pdfAssetId) return null;
   const asset = await prisma.mediaAsset.findFirst({
     where: { id: pdfAssetId, deletedAt: null },

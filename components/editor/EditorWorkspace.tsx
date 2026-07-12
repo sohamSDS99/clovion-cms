@@ -261,27 +261,64 @@ export function EditorWorkspace({
 
       {/* ── Two-pane body (fixed height; each pane scrolls on its own) ──── */}
       <div className="flex min-h-0 flex-1 gap-5 overflow-hidden p-5">
-        {/* Editor card */}
+        {/* Editor card. WEBINAR gets a YouTube-style upload flow (video +
+            cover + title + description) instead of the article-first body. */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-paper-raised shadow-card">
-          <input
-            value={draft.title}
-            onChange={(e) => update({ title: e.target.value })}
-            placeholder="Title"
-            aria-label="Title"
-            className="shrink-0 border-b border-line bg-transparent px-6 py-4 text-3xl font-semibold tracking-tight text-ink placeholder:text-ink-faint focus:outline-none"
-          />
-          <TiptapEditor
-            fill
-            initialDoc={draft.body}
-            onChange={(body: TiptapDoc) => update({ body })}
-            onReady={onEditorReady}
-            placeholder="Start writing..."
-          />
-          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-6 py-2 text-xs text-ink-mute">
-            <span>
-              {counts.words} words · {counts.chars} characters
-            </span>
-          </div>
+          {item.type === "WEBINAR" ? (
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
+              <VideoField
+                assetId={(draft.typeData.videoAssetId as string | undefined) ?? null}
+                onChange={(id) =>
+                  update({
+                    typeData: { ...draft.typeData, videoAssetId: id ?? undefined },
+                  })
+                }
+              />
+              <ImageField
+                label="Cover image"
+                assetId={draft.coverAssetId}
+                onChange={(id) => update({ coverAssetId: id })}
+                error={gateErrors.coverAssetId}
+              />
+              <Input
+                label="Title"
+                value={draft.title}
+                onChange={(e) => update({ title: e.target.value })}
+                placeholder="Webinar title"
+              />
+              <div>
+                <Label>Description</Label>
+                <TiptapEditor
+                  initialDoc={draft.body}
+                  onChange={(body: TiptapDoc) => update({ body })}
+                  onReady={onEditorReady}
+                  placeholder="Describe this webinar..."
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              <input
+                value={draft.title}
+                onChange={(e) => update({ title: e.target.value })}
+                placeholder="Title"
+                aria-label="Title"
+                className="shrink-0 border-b border-line bg-transparent px-6 py-4 text-3xl font-semibold tracking-tight text-ink placeholder:text-ink-faint focus:outline-none"
+              />
+              <TiptapEditor
+                fill
+                initialDoc={draft.body}
+                onChange={(body: TiptapDoc) => update({ body })}
+                onReady={onEditorReady}
+                placeholder="Start writing..."
+              />
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line px-6 py-2 text-xs text-ink-mute">
+                <span>
+                  {counts.words} words · {counts.chars} characters
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Inspector */}
@@ -412,12 +449,15 @@ function DetailsTab({
         />
       ) : null}
 
-      <ImageField
-        label="Cover image"
-        assetId={draft.coverAssetId}
-        onChange={(id) => update({ coverAssetId: id })}
-        error={gateErrors.coverAssetId}
-      />
+      {/* WEBINAR's cover lives in the main upload flow, not here. */}
+      {item.type !== "WEBINAR" ? (
+        <ImageField
+          label="Cover image"
+          assetId={draft.coverAssetId}
+          onChange={(id) => update({ coverAssetId: id })}
+          error={gateErrors.coverAssetId}
+        />
+      ) : null}
 
       <ImageField
         label="Social share image"
@@ -573,6 +613,86 @@ function ImageField({
         onClose={() => setOpen(false)}
         kind="IMAGE"
         title={`Choose ${label.toLowerCase()}`}
+        onPick={(a) => {
+          onChange(a.id);
+          setOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+
+/* ── Webinar video — dashed uploader, YouTube-upload style ──────────────── */
+function VideoField({
+  assetId,
+  onChange,
+}: {
+  assetId: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [asset, setAsset] = useState<MediaAsset | null>(null);
+
+  useEffect(() => {
+    if (!assetId) {
+      setAsset(null);
+      return;
+    }
+    let active = true;
+    api
+      .get<MediaAsset>(`/api/media/${assetId}`)
+      .then((a) => active && setAsset(a))
+      .catch(() => active && setAsset(null));
+    return () => {
+      active = false;
+    };
+  }, [assetId]);
+
+  return (
+    <div>
+      <Label>Video</Label>
+      {assetId ? (
+        <div className="space-y-2">
+          {asset?.url ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              src={asset.url}
+              controls
+              preload="metadata"
+              className="aspect-video w-full rounded-lg border border-line bg-black"
+            />
+          ) : null}
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-paper-sunken p-2.5 text-sm">
+            <span className="truncate text-ink-soft">{asset?.filename ?? "Attached video"}</span>
+            <div className="flex gap-1.5">
+              <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+                Replace
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onChange(null)}>
+                Remove
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex aspect-video w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong bg-paper text-ink-mute transition-colors hover:border-ink-faint hover:text-ink"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" />
+          </svg>
+          <span className="text-sm font-medium">Upload video</span>
+          <span className="text-xs text-ink-faint">MP4 or WebM</span>
+        </button>
+      )}
+
+      <MediaPicker
+        open={open}
+        onClose={() => setOpen(false)}
+        kind="VIDEO"
+        title="Choose video"
         onPick={(a) => {
           onChange(a.id);
           setOpen(false);
