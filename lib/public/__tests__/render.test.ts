@@ -41,4 +41,42 @@ describe("renderTiptapToHtml", () => {
       renderTiptapToHtml({ type: "doc", content: [emptyPara, emptyParaWithArray] }),
     ).toBe("");
   });
+
+  // Regression: the renderer once kept a local extension list that lagged the
+  // editor's — any doc using a newer node/mark (highlight, task list, text
+  // align, color) threw in generateHTML and shipped an EMPTY body to the site.
+  it("renders every node/mark the editor can produce (no schema drift)", () => {
+    const html = renderTiptapToHtml({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          attrs: { textAlign: "center" },
+          content: [
+            {
+              type: "text",
+              text: "Key takeaways",
+              marks: [
+                { type: "highlight" },
+                { type: "textStyle", attrs: { color: "#C2410C" } },
+              ],
+            },
+          ],
+        },
+        {
+          type: "taskList",
+          content: [
+            {
+              type: "taskItem",
+              attrs: { checked: true },
+              content: [para("Measure before you optimize.")],
+            },
+          ],
+        },
+      ],
+    });
+    expect(html).not.toBe("");
+    expect(html).toContain("Key takeaways");
+    expect(html).toContain("Measure before you optimize.");
+  });
 });
