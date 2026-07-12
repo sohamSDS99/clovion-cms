@@ -60,8 +60,7 @@ export const faqItemSchema = z.object({
 
 /**
  * Optional embeddable FAQ section. Every article-shaped type (BLOG, RESEARCH,
- * NEWS, RESOURCE) can carry a Q&A section in addition to its body; the FAQ type
- * uses the same field as its primary content (see faqTypeDataSchema).
+ * FAQ, NEWS, RESOURCE) can carry a Q&A section in addition to its body.
  */
 const faqItemsField = { faqItems: z.array(faqItemSchema).optional() };
 
@@ -93,11 +92,6 @@ export const resourceTypeDataSchema = z
   })
   .passthrough();
 
-/** FAQ: a list of question/answer items is the primary content. */
-export const faqTypeDataSchema = z
-  .object({ ...faqItemsField })
-  .passthrough();
-
 /** NEWS: external source attribution (+ optional FAQ section). */
 export const newsTypeDataSchema = z
   .object({
@@ -117,15 +111,14 @@ export function typeDataSchemaFor(type: ContentTypeInput) {
   switch (type) {
     case "BLOG":
     case "RESEARCH":
-      // Research is a long-form article (like BLOG): the body is the report,
-      // cover optional, no required file. Author decides what to upload.
+    case "FAQ":
+      // BLOG, RESEARCH and FAQ are plain long-form articles: the body is the
+      // content, cover optional, plus the shared optional FAQ section.
       return blogTypeDataSchema;
     case "WEBINAR":
       return webinarTypeDataSchema;
     case "RESOURCE":
       return resourceTypeDataSchema;
-    case "FAQ":
-      return faqTypeDataSchema;
     case "NEWS":
       return newsTypeDataSchema;
   }

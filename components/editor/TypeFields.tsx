@@ -2,9 +2,8 @@
 
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Field";
-import { Button } from "@/components/ui/Button";
 import { isoToLocalInput, localInputToIso } from "@/lib/ui/format";
-import type { ContentType, FaqItem } from "@/lib/ui/types";
+import type { ContentType } from "@/lib/ui/types";
 
 type TypeData = Record<string, unknown>;
 
@@ -24,8 +23,10 @@ export function TypeFields({
   onChange: (patch: TypeData) => void;
   fieldErrors?: Record<string, string>;
 }) {
-  // BLOG and RESEARCH are plain long-form articles with no extra structured fields.
-  if (type === "BLOG" || type === "RESEARCH") return null;
+  // Only WEBINAR and NEWS carry extra structured fields. BLOG, RESEARCH, FAQ
+  // and RESOURCE are article-shaped and share the same editor (RESOURCE's
+  // downloadable file is handled separately in the Details tab).
+  if (type !== "WEBINAR" && type !== "NEWS") return null;
 
   return (
     <Card>
@@ -33,13 +34,9 @@ export function TypeFields({
       <div className="space-y-4 p-5">
         {type === "WEBINAR" ? (
           <WebinarFields typeData={typeData} onChange={onChange} fieldErrors={fieldErrors} />
-        ) : null}
-        {type === "FAQ" ? (
-          <FaqFields typeData={typeData} onChange={onChange} fieldErrors={fieldErrors} />
-        ) : null}
-        {type === "NEWS" ? (
+        ) : (
           <NewsFields typeData={typeData} onChange={onChange} />
-        ) : null}
+        )}
       </div>
     </Card>
   );
@@ -114,67 +111,6 @@ export function WebinarFields({
         onChange={(e) => onChange({ recordingUrl: e.target.value || undefined })}
       />
     </>
-  );
-}
-
-/* ── FAQ ─────────────────────────────────────────────────────────────────── */
-export function FaqFields({
-  typeData,
-  onChange,
-  fieldErrors,
-}: {
-  typeData: TypeData;
-  onChange: (patch: TypeData) => void;
-  fieldErrors?: Record<string, string>;
-}) {
-  const items: FaqItem[] = Array.isArray(typeData.faqItems)
-    ? (typeData.faqItems as FaqItem[])
-    : [];
-
-  const update = (next: FaqItem[]) => onChange({ faqItems: next });
-
-  return (
-    <div className="space-y-3">
-      {fieldErrors?.["typeData.faqItems"] ? (
-        <p className="text-xs text-danger" role="alert">{fieldErrors["typeData.faqItems"]}</p>
-      ) : null}
-      {items.map((item, i) => (
-        <div key={i} className="space-y-2 rounded-sm border border-line bg-paper p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-ink-mute">Question {i + 1}</span>
-            <button
-              onClick={() => update(items.filter((_, j) => j !== i))}
-              className="text-xs text-danger hover:underline"
-            >
-              Remove
-            </button>
-          </div>
-          <Input
-            value={item.question}
-            placeholder="Question"
-            onChange={(e) =>
-              update(items.map((it, j) => (j === i ? { ...it, question: e.target.value } : it)))
-            }
-          />
-          <textarea
-            value={item.answer}
-            placeholder="Answer"
-            rows={2}
-            onChange={(e) =>
-              update(items.map((it, j) => (j === i ? { ...it, answer: e.target.value } : it)))
-            }
-            className="w-full resize-y rounded-sm border border-line-strong bg-paper-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25"
-          />
-        </div>
-      ))}
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => update([...items, { question: "", answer: "" }])}
-      >
-        Add question
-      </Button>
-    </div>
   );
 }
 

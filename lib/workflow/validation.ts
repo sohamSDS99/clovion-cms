@@ -82,16 +82,12 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
   }
 
   // --- Cover image -----------------------------------------------------
-  // ERROR for BLOG (cover required), WARNING for all other types.
+  // WARNING for every type — article-shaped types share one rule set.
   if (!item.coverAssetId) {
-    if (item.type === "BLOG") {
-      errors.push({ field: "coverAssetId", message: "Blog posts require a cover image." });
-    } else {
-      warnings.push({
-        field: "coverAssetId",
-        message: "A cover image is recommended.",
-      });
-    }
+    warnings.push({
+      field: "coverAssetId",
+      message: "A cover image is recommended.",
+    });
   }
 
   // --- Type-specific requirements --------------------------------------
@@ -106,11 +102,6 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
       }
       break;
     }
-    // RESEARCH publishes as a long-form article (like BLOG): the body IS the
-    // report. A cover image and an attached file are optional, not required —
-    // the author decides what to upload. No type-specific publish requirement.
-    case "RESEARCH":
-      break;
     case "WEBINAR": {
       if (!item.typeData?.startAt) {
         errors.push({
@@ -126,17 +117,9 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
       }
       break;
     }
-    case "FAQ": {
-      const faqItems = item.typeData?.faqItems;
-      if (!Array.isArray(faqItems) || faqItems.length === 0) {
-        errors.push({
-          field: "typeData.faqItems",
-          message: "FAQs require at least one FAQ item.",
-        });
-      }
-      break;
-    }
-    // BLOG and NEWS have no extra type-specific required fields here.
+    // BLOG, RESEARCH, FAQ and NEWS are article-shaped with no extra
+    // type-specific required fields — RESOURCE's download gate is the only
+    // structural delta among the article types.
     default:
       break;
   }

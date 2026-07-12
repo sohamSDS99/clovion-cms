@@ -105,30 +105,18 @@ describe("generateJsonLd", () => {
     expect(JSON.stringify(ld)).not.toContain("secret.pdf");
   });
 
-  it("RESEARCH (gated) -> Article that OMITS the download URL (NFR-SEC-03/NG3)", () => {
-    const ld = generateJsonLd({
-      ...base,
-      type: "RESEARCH",
-      gated: true,
-      typeData: { downloadUrl: "https://cdn.example.com/report-secret.pdf" },
-    });
-    // Research is a gated report — same schema treatment as a gated RESOURCE.
-    expect(ld["@type"]).toBe("Article");
-    expect(ld.associatedMedia).toBeUndefined();
-    expect(JSON.stringify(ld)).not.toContain("report-secret.pdf");
-  });
-
-  it("RESEARCH (ungated) -> Article with associatedMedia download link", () => {
+  it("RESEARCH -> plain Article with no download media (mirrors BLOG)", () => {
     const ld = generateJsonLd({
       ...base,
       type: "RESEARCH",
       gated: false,
-      typeData: { downloadUrl: "https://cdn.example.com/report.pdf", fileLabel: "State of GEO" },
+      typeData: { downloadUrl: "https://cdn.example.com/report.pdf" },
     });
     expect(ld["@type"]).toBe("Article");
-    const media = ld.associatedMedia as Record<string, unknown>;
-    expect(media["@type"]).toBe("CreativeWork");
-    expect(media.url).toBe("https://cdn.example.com/report.pdf");
+    // Research is a plain long-form article — never a download, so any stray
+    // typeData.downloadUrl must not surface in structured data.
+    expect(ld.associatedMedia).toBeUndefined();
+    expect(JSON.stringify(ld)).not.toContain("report.pdf");
   });
 
   it("omits undefined fields (no author/image) cleanly", () => {

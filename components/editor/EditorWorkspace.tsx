@@ -114,13 +114,9 @@ export function EditorWorkspace({
   const counts = useMemo(() => wordCount(draft.body), [draft.body]);
 
   // Optional embeddable FAQ section — lives in its own inspector tab (keeps the
-  // article body clean). Article-shaped types only; the FAQ content type manages
-  // its own Q&A via TypeFields in Details, so it's excluded here.
-  const supportsFaq =
-    item.type === "BLOG" ||
-    item.type === "RESEARCH" ||
-    item.type === "NEWS" ||
-    item.type === "RESOURCE";
+  // article body clean). Every article-shaped type gets it, including the FAQ
+  // type itself; only WEBINAR (event-shaped) is excluded.
+  const supportsFaq = item.type !== "WEBINAR";
   const faqItems: FaqItem[] = Array.isArray(draft.typeData.faqItems)
     ? (draft.typeData.faqItems as FaqItem[])
     : [];
@@ -481,9 +477,9 @@ function DetailsTab({
         </Select>
       </div>
 
-      {/* Type-specific fields (Webinar/FAQ/News). RESOURCE's downloadable file
+      {/* Type-specific fields (Webinar/News). RESOURCE's downloadable file
           renders at the top of this tab, so it is handled separately above. */}
-      {item.type !== "BLOG" && item.type !== "RESEARCH" && item.type !== "RESOURCE" ? (
+      {item.type === "WEBINAR" || item.type === "NEWS" ? (
         <TypeFields
           type={item.type}
           typeData={draft.typeData}
