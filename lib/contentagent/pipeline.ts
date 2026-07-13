@@ -36,6 +36,9 @@ import {
   stripImageMarkers,
   lessonsBlock,
   learnerMessages,
+  syllabusMessages,
+  MAX_LESSONS,
+  type Syllabus,
 } from "./prompts";
 import { Prisma } from "@prisma/client";
 import type { AgentRun, AgentRunStatus } from "@prisma/client";
@@ -66,7 +69,7 @@ interface RoleCallResult {
   usage: Usage | undefined;
 }
 
-async function callRole(
+export async function callRole(
   keys: ProviderKeys,
   model: string,
   messages: ChatMessage[],
@@ -111,8 +114,29 @@ async function callRoleWithSearch(
   throw lastErr;
 }
 
+/** Thrown internally when a run was cancelled by the user mid-pipeline. */
+class RunCancelled extends Error {
+  constructor() {
+    super("cancelled");
+  }
+}
+
+/** Status write that respects cancellation: throws if the run was cancelled. */
 async function setStatus(runId: string, status: AgentRunStatus, extra?: Prisma.AgentRunUpdateInput) {
-  await prisma.agentRun.update({ where: { id: runId }, data: { status, ...extra } });
+  const res = await prisma.agentRun.updateMany({
+    where: { id: runId, NOT: { status: "CANCELLED" } },
+    data: { status, ...extra },
+  });
+  if (res.count === 0) throw new RunCancelled();
+}
+
+/** Cheap cancellation check between expensive model calls. */
+async function assertNotCancelled(runId: string): Promise<void> {
+  const row = await prisma.agentRun.findUnique({
+    where: { id: runId },
+    select: { status: true },
+  });
+  if (row?.status === "CANCELLED") throw new RunCancelled();
 }
 
 function usageTotals(usages: (Usage | undefined)[]) {
@@ -204,9 +228,15 @@ export async function executeRun(runId: string): Promise<void> {
         8000,
         run.allowResearch ? { maxUses: 3 } : undefined
       );
+      await assertNotCancelled(runId);
       usages.push(planRes.usage);
       plan = parseJsonOutput(planRes.text);
-      await setStatus(runId, "WRITING", { plan: plan as Prisma.InputJsonValue });
+      // Store the orchestrator's size recommendation when the user left it on auto.
+      const rec = (plan as { recommendedSize?: string }).recommendedSize?.match(/\d{3,4}x\d{3,4}/)?.[0];
+      await setStatus(runId, "WRITING", {
+        plan: plan as Prisma.InputJsonValue,
+        ...(rec && !run.designSize ? { designSize: rec } : {}),
+      });
     } else {
       await setStatus(runId, "REVISING");
     }
@@ -222,6 +252,7 @@ export async function executeRun(runId: string): Promise<void> {
     }
     if (lessons) draftMsgs[0].content += lessons;
     const draftRes = await callRole(keys, models.writer, draftMsgs, maxTokens);
+    await assertNotCancelled(runId);
     usages.push(draftRes.usage);
     let draft = draftRes.text.trim();
 
@@ -239,6 +270,7 @@ export async function executeRun(runId: string): Promise<void> {
         8000
       );
       usages.push(qaRes.usage);
+      await assertNotCancelled(runId);
       qaReport = parseJsonOutput<QaReport>(qaRes.text);
       if (qaReport.pass || rounds >= MAX_AUTO_REVISIONS) break;
 
@@ -260,11 +292,35 @@ export async function executeRun(runId: string): Promise<void> {
     const { content, spec: specOut, caption } = splitDeliverable(draft);
     const cleanContent =
       spec.format === "article" && content ? stripImageMarkers(content) : content;
-    await prisma.agentRun.update({
-      where: { id: runId },
+    // Visual formats (spec present) have no standalone content deliverable;
+    // leave draftText null rather than duplicating the combined raw text.
+    const storedDraft = cleanContent ?? (specOut ? null : draft);
+    // Course outlines: derive the structured, editable lesson plan so the run
+    // page can render it immediately (best-effort — the raw text remains).
+    let outlineSyllabus: Prisma.InputJsonValue | undefined;
+    if (run.postType === "course-outline" && (content ?? draft)) {
+      try {
+        const sylRes = await callRole(
+          keys,
+          models.orchestrator,
+          syllabusMessages({ ...run, draftText: content ?? draft } as typeof run),
+          8000
+        );
+        usages.push(sylRes.usage);
+        const parsed = parseJsonOutput<Syllabus>(sylRes.text);
+        parsed.lessons = (parsed.lessons ?? []).slice(0, MAX_LESSONS);
+        outlineSyllabus = parsed as unknown as Prisma.InputJsonValue;
+      } catch {
+        // non-fatal: the outline text still works; extraction retries at generate time
+      }
+    }
+
+    await prisma.agentRun.updateMany({
+      where: { id: runId, NOT: { status: "CANCELLED" } },
       data: {
         status: "READY",
-        draftText: cleanContent ?? draft,
+        ...(outlineSyllabus !== undefined ? { outlineSyllabus } : {}),
+        draftText: storedDraft,
         specText: specOut,
         captionText: caption,
         // Snapshot the first finished output for the learning pass.
@@ -279,6 +335,20 @@ export async function executeRun(runId: string): Promise<void> {
     });
   } catch (err) {
     const totals = usageTotals(usages);
+    if (err instanceof RunCancelled) {
+      // User stopped the run — record spend, keep CANCELLED status.
+      await prisma.agentRun
+        .updateMany({
+          where: { id: runId, status: "CANCELLED" },
+          data: {
+            tokensPrompt: { increment: totals.prompt },
+            tokensCompletion: { increment: totals.completion },
+            costUsd: { increment: totals.cost },
+          },
+        })
+        .catch(() => {});
+      return;
+    }
     await prisma.agentRun
       .update({
         where: { id: runId },

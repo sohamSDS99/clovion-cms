@@ -11,12 +11,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock the native parsers before importing the module under test.
-const pdfParseMock = vi.fn(async (_buf: Buffer) => ({ text: "PDF-PARSED-TEXT" }));
+// Mirrors pdf-parse v2's class API (PDFParse with getText/destroy).
+const pdfGetTextMock = vi.fn(async () => ({ text: "PDF-PARSED-TEXT" }));
+const pdfParseMock = vi.fn(function (this: unknown, opts: { data: Uint8Array }) {
+  pdfCtorArgs.push(opts);
+  return { getText: pdfGetTextMock, destroy: vi.fn(async () => {}) };
+});
+const pdfCtorArgs: { data: Uint8Array }[] = [];
 const mammothExtractMock = vi.fn(async (_opts: { buffer: Buffer }) => ({
   value: "DOCX-PARSED-TEXT",
 }));
 
-vi.mock("pdf-parse", () => ({ default: pdfParseMock }));
+vi.mock("pdf-parse", () => ({ PDFParse: pdfParseMock }));
 vi.mock("mammoth", () => ({ extractRawText: mammothExtractMock }));
 
 import { extractText } from "@/lib/kb/extract";
@@ -24,6 +30,8 @@ import { extractText } from "@/lib/kb/extract";
 describe("extractText dispatch", () => {
   beforeEach(() => {
     pdfParseMock.mockClear();
+    pdfGetTextMock.mockClear();
+    pdfCtorArgs.length = 0;
     mammothExtractMock.mockClear();
   });
 
@@ -46,8 +54,8 @@ describe("extractText dispatch", () => {
     const out = await extractText("PDF", "", b64);
     expect(out).toBe("PDF-PARSED-TEXT");
     expect(pdfParseMock).toHaveBeenCalledTimes(1);
-    const passed = pdfParseMock.mock.calls[0][0];
-    expect(Buffer.isBuffer(passed)).toBe(true);
+    const passed = pdfCtorArgs[0].data;
+    expect(passed instanceof Uint8Array).toBe(true);
   });
 
   it("DOC with a Buffer routes to mammoth.extractRawText", async () => {
@@ -70,10 +78,10 @@ describe("extractText dispatch", () => {
   });
 
   it("surfaces an honest error when the PDF parser throws", async () => {
-    pdfParseMock.mockRejectedValueOnce(new Error("corrupt xref"));
+    pdfGetTextMock.mockRejectedValueOnce(new Error("corrupt xref"));
     await expect(
       extractText("PDF", "", Buffer.from("bad"))
-    ).rejects.toThrow(/Failed to parse PDF: corrupt xref/);
+    ).rejects.toThrow(/Couldn't read this PDF.*corrupt xref/);
   });
 
   it("surfaces an honest error when the DOCX parser throws", async () => {

@@ -189,3 +189,47 @@ describe("validateForPublish — ok reflects errors only (warnings don't block)"
     expect(res.ok).toBe(true);
   });
 });
+
+describe("validateForPublish — COURSE", () => {
+  const courseData = {
+    courseSlug: "chemical-safety-101",
+    courseTitle: "Chemical Safety 101",
+    lessonNumber: 2,
+  };
+
+  it("passes with courseSlug, courseTitle and lessonNumber", () => {
+    const res = validateForPublish(base({ type: "COURSE", typeData: courseData }));
+    expect(res.ok).toBe(true);
+    expect(res.errors).toHaveLength(0);
+  });
+
+  it("fails without courseSlug", () => {
+    const { courseSlug: _omit, ...rest } = courseData;
+    const res = validateForPublish(base({ type: "COURSE", typeData: rest }));
+    expect(res.ok).toBe(false);
+    expect(fields(res.errors)).toContain("typeData.courseSlug");
+  });
+
+  it("fails without courseTitle", () => {
+    const { courseTitle: _omit, ...rest } = courseData;
+    const res = validateForPublish(base({ type: "COURSE", typeData: rest }));
+    expect(res.ok).toBe(false);
+    expect(fields(res.errors)).toContain("typeData.courseTitle");
+  });
+
+  it("fails without lessonNumber", () => {
+    const { lessonNumber: _omit, ...rest } = courseData;
+    const res = validateForPublish(base({ type: "COURSE", typeData: rest }));
+    expect(res.ok).toBe(false);
+    expect(fields(res.errors)).toContain("typeData.lessonNumber");
+  });
+
+  it("reports all three grouping fields on empty typeData", () => {
+    const res = validateForPublish(base({ type: "COURSE", typeData: {} }));
+    expect(res.ok).toBe(false);
+    const f = fields(res.errors);
+    expect(f).toContain("typeData.courseSlug");
+    expect(f).toContain("typeData.courseTitle");
+    expect(f).toContain("typeData.lessonNumber");
+  });
+});

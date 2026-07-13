@@ -49,6 +49,7 @@ enum ContentType {
   WEBINAR
   NEWS
   RESOURCE
+  COURSE
   FAQ
 }
 
@@ -587,9 +588,11 @@ model ApiKey {
 enum AgentChannel {
   LINKEDIN_PERSONAL
   LINKEDIN_COMPANY
-  META_SOCIAL
+  META_SOCIAL // legacy (pre Facebook/Instagram split)
+  FACEBOOK
+  INSTAGRAM
   BLOG_ARTICLE
-  REPORT_ARTICLE
+  REPORT_ARTICLE // legacy (folded into BLOG_ARTICLE "from-report" angle)
   WEBSITE
 }
 
@@ -601,6 +604,7 @@ enum AgentRunStatus {
   REVISING
   READY
   FAILED
+  CANCELLED
 }
 
 model AgentRun {
@@ -611,6 +615,15 @@ model AgentRun {
   format       String?
   // Allow the orchestrator to run quick web research to back claims with data.
   allowResearch Boolean       @default(true)
+  // SEO keywords (website content): first entry is the primary keyword.
+  keywords     String[]       @default([])
+  // Artboard size for visual formats ("1080x1350"); null = agent recommends.
+  designSize   String?
+  // Course outlines: the editable, structured lesson plan derived from the
+  // outline text. Source of truth for one-click course generation.
+  outlineSyllabus Json?
+  // filed into that course (typeData.courseSlug) instead of the blog.
+  targetCourseSlug String?
   brief        String         @db.Text
   // Raw source material (e.g. a research report) for REPORT_ARTICLE runs.
   sourceReport String?        @db.Text
@@ -661,4 +674,60 @@ model AgentLesson {
 
   @@index([channel, isActive, createdAt])
   @@map("agent_lessons")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// COURSE BATCH — one-click course generation from an approved outline run.
+// Lessons chain sequentially (each fed the outline + prior lessons); template
+// assets (docx/xlsx) are generated per lesson into the media library.
+// ──────────────────────────────────────────────────────────────────────────────
+
+enum CourseBatchStatus {
+  PLANNING
+  RUNNING
+  READY
+  FAILED
+}
+
+model CourseBatch {
+  id            String            @id @default(uuid()) @db.Uuid
+  outlineRunId  String            @unique @db.Uuid
+  courseTitle   String?
+  // { courseTitle, lessons: [{ n, title, brief, assets: [{name, kind, description}] }] }
+  syllabus      Json?
+  status        CourseBatchStatus @default(PLANNING)
+  currentLesson Int               @default(0)
+  lessonRunIds  Json              @default("[]")
+  error         Json?
+  createdById   String?           @db.Uuid
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@map("course_batches")
+}
+
+enum AgentAssetStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
+// Generated downloadable files (lesson templates/checklists) linked to runs.
+model AgentAsset {
+  id           String           @id @default(uuid()) @db.Uuid
+  runId        String           @db.Uuid
+  target       String
+  kind         String // "docx" | "xlsx"
+  filename     String?
+  status       AgentAssetStatus @default(PENDING)
+  mediaAssetId String?          @db.Uuid
+  error        Json?
+  createdById  String?          @db.Uuid
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([runId, target])
+  @@index([runId])
+  @@map("agent_assets")
 }

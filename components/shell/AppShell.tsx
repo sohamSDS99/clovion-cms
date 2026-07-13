@@ -41,6 +41,8 @@ function contentTypeIcon(type: ContentType): React.ReactNode {
       return <IconNews />;
     case "RESOURCE":
       return <IconResource />;
+    case "COURSE":
+      return <IconBook />;
     case "FAQ":
       return <IconHelp />;
     default:
@@ -88,7 +90,18 @@ function AppShellInner({
   const contentSubItems = (type: ContentType): NavSubItem[] => {
     const items: NavSubItem[] = [];
 
-    if (!isReadOnly) {
+    // COURSE lessons are managed per-course: the group leads with the Course
+    // Manager (which owns creation), then the usual status list links.
+    if (type === "COURSE") {
+      items.push({
+        href: "/course-manager",
+        label: "Course Manager",
+        icon: <IconGrid />,
+        active:
+          pathname === "/course-manager" ||
+          pathname.startsWith("/course-manager/"),
+      });
+    } else if (!isReadOnly) {
       items.push({
         href: `/content/new?type=${type}`,
         label: "Create New",
@@ -111,9 +124,13 @@ function AppShellInner({
         activeStatus === status,
     });
 
-    items.push(listLink("DRAFT", "Drafts", <IconPencil />));
-    items.push(listLink("PUBLISHED", "Published", <IconCheckCircle />));
-    items.push(listLink("SCHEDULED", "Scheduled", <IconCalendar />));
+    // COURSE: the Course Manager shows every lesson with its status in one
+    // place, so the per-status list links are redundant there.
+    if (type !== "COURSE") {
+      items.push(listLink("DRAFT", "Drafts", <IconPencil />));
+      items.push(listLink("PUBLISHED", "Published", <IconCheckCircle />));
+      items.push(listLink("SCHEDULED", "Scheduled", <IconCalendar />));
+    }
 
     return items;
   };
@@ -121,7 +138,8 @@ function AppShellInner({
   // Whether a content group should auto-expand: any of its children is active.
   const contentGroupOpen = (type: ContentType): boolean =>
     (pathname === "/content" && activeType === type) ||
-    (pathname === "/content/new" && activeType === type);
+    (pathname === "/content/new" && activeType === type) ||
+    (type === "COURSE" && pathname.startsWith("/course-manager"));
 
   const settingsActive =
     pathname === "/settings" || pathname.startsWith("/settings/");

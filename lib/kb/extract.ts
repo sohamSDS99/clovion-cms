@@ -104,17 +104,31 @@ function toBuffer(binary: BinaryInput): Buffer {
 async function extractFromPdf(binary: BinaryInput): Promise<string> {
   const buffer = toBuffer(binary);
   try {
-    // pdf-parse exports a CJS default function; interop-safe access.
+    // pdf-parse v2 exports a PDFParse class; v1 exported a callable default.
+    // Support both so a dependency bump can't silently break extraction again.
     const mod = (await import("pdf-parse")) as unknown as {
+      PDFParse?: new (opts: { data: Uint8Array }) => {
+        getText: () => Promise<{ text?: string }>;
+        destroy?: () => Promise<void>;
+      };
       default?: (data: Buffer) => Promise<{ text: string }>;
     };
+    if (mod.PDFParse) {
+      const parser = new mod.PDFParse({ data: new Uint8Array(buffer) });
+      try {
+        const result = await parser.getText();
+        return (result.text ?? "").trim();
+      } finally {
+        await parser.destroy?.().catch(() => {});
+      }
+    }
     const pdfParse =
       mod.default ?? (mod as unknown as (data: Buffer) => Promise<{ text: string }>);
     const result = await pdfParse(buffer);
     return (result.text ?? "").trim();
   } catch (err) {
     throw new BadRequestError(
-      `Failed to parse PDF: ${err instanceof Error ? err.message : String(err)}`
+      `Couldn't read this PDF (it may be scanned/image-based or protected): ${err instanceof Error ? err.message : String(err)}`
     );
   }
 }

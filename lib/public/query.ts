@@ -8,7 +8,8 @@
 
 import type { ContentType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import type { ContentItemWithRelations } from "./serialize";
+import type { ContentItemWithRelations, PublicCourseDownload } from "./serialize";
+import type { CourseLesson } from "./courseNav";
 
 /** Relation include used everywhere so serialization has all it needs. */
 export const PUBLIC_INCLUDE = {
@@ -62,28 +63,92 @@ export async function resolveAvatarUrl(
 }
 
 /**
- * Resolve an item's attached media file — a RESOURCE's downloadable PDF
- * (`typeData.pdfAssetId`) or a WEBINAR's uploaded video (`typeData.videoAssetId`)
- * — to its public URL. Returns null when unset/deleted. Gating is enforced by
- * the serializer — this only resolves the asset URL, so the caller can pass it
- * straight into `toPublicContent`.
+ * Resolve a RESOURCE item's downloadable file (`typeData.pdfAssetId`)
+ * to its public URL. Returns null for non-resource types or when unset/deleted.
+ * Gating is enforced by the serializer — this only resolves the asset URL, so
+ * the caller can pass it straight into `toPublicContent`.
  */
 export async function resolveResourceDownloadUrl(
   item: ContentItemWithRelations,
 ): Promise<string | null> {
   const td = (item.typeData ?? {}) as Record<string, unknown>;
-  const pdfAssetId =
-    typeof td.pdfAssetId === "string"
-      ? td.pdfAssetId
-      : typeof td.videoAssetId === "string"
-        ? td.videoAssetId
-        : null;
+  const pdfAssetId = typeof td.pdfAssetId === "string" ? td.pdfAssetId : null;
   if (!pdfAssetId) return null;
   const asset = await prisma.mediaAsset.findFirst({
     where: { id: pdfAssetId, deletedAt: null },
     select: { url: true },
   });
   return asset?.url ?? null;
+}
+
+/**
+ * Resolve a COURSE lesson's `typeData.downloads` ({mediaAssetId, label}[]) to
+ * public {label, url, filename} entries in one batched query. Entries whose
+ * asset is missing or soft-deleted are dropped, so the public payload never
+ * carries an asset reference without a usable URL. Returns null for non-COURSE
+ * items so the serializer's default applies.
+ */
+export async function resolveCourseDownloads(
+  item: ContentItemWithRelations,
+): Promise<PublicCourseDownload[] | null> {
+  if (item.type !== "COURSE") return null;
+  const td = (item.typeData ?? {}) as Record<string, unknown>;
+  const raw = Array.isArray(td.downloads) ? td.downloads : [];
+  const entries = raw.filter(
+    (d): d is { mediaAssetId: string; label: string } =>
+      Boolean(d) &&
+      typeof (d as { mediaAssetId?: unknown }).mediaAssetId === "string" &&
+      typeof (d as { label?: unknown }).label === "string",
+  );
+  if (entries.length === 0) return [];
+  const assets = await prisma.mediaAsset.findMany({
+    where: { id: { in: entries.map((e) => e.mediaAssetId) }, deletedAt: null },
+    select: { id: true, url: true, filename: true },
+  });
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const out: PublicCourseDownload[] = [];
+  for (const e of entries) {
+    const asset = byId.get(e.mediaAssetId);
+    if (asset?.url) {
+      out.push({ label: e.label, url: asset.url, filename: asset.filename ?? null });
+    }
+  }
+  return out;
+}
+
+/**
+ * All PUBLISHED lessons of one course — COURSE items whose
+ * `typeData.courseSlug` matches (Prisma JSON path filter) — projected to the
+ * pure course-navigation shape. Ordering/prev/next happen in computeCourseNav.
+ */
+/** ~200 wpm reading time from rendered HTML (min 1 when content exists). */
+export function readMinutesFromHtml(html: string | null | undefined): number {
+  if (!html) return 0;
+  const words = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+  return words === 0 ? 0 : Math.max(1, Math.round(words / 200));
+}
+
+export async function listPublishedCourseLessons(
+  courseSlug: string,
+): Promise<CourseLesson[]> {
+  const rows = await prisma.contentItem.findMany({
+    where: publishedWhere({
+      type: "COURSE",
+      typeData: { path: ["courseSlug"], equals: courseSlug },
+    }),
+    select: { slug: true, title: true, excerpt: true, typeData: true, bodyHtml: true },
+  });
+  return rows.map((r) => {
+    const td = (r.typeData ?? {}) as Record<string, unknown>;
+    return {
+      slug: r.slug,
+      title: r.title,
+      excerpt: r.excerpt ?? null,
+      lessonNumber: typeof td.lessonNumber === "number" ? td.lessonNumber : 0,
+      readMinutes: readMinutesFromHtml(r.bodyHtml),
+      downloadsCount: Array.isArray(td.downloads) ? td.downloads.length : 0,
+    };
+  });
 }
 
 /**

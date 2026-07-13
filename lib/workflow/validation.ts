@@ -117,6 +117,29 @@ export function validateForPublish(item: PublishCandidate): PublishValidationRes
       }
       break;
     }
+    // COURSE is a lesson inside a course — the grouping fields must be set
+    // so the public site can assemble navigation between lessons.
+    case "COURSE": {
+      if (!item.typeData?.courseSlug) {
+        errors.push({
+          field: "typeData.courseSlug",
+          message: "Course lessons require a course slug.",
+        });
+      }
+      if (!item.typeData?.courseTitle) {
+        errors.push({
+          field: "typeData.courseTitle",
+          message: "Course lessons require a course title.",
+        });
+      }
+      if (typeof item.typeData?.lessonNumber !== "number") {
+        errors.push({
+          field: "typeData.lessonNumber",
+          message: "Course lessons require a lesson number.",
+        });
+      }
+      break;
+    }
     // BLOG, RESEARCH, FAQ and NEWS are article-shaped with no extra
     // type-specific required fields — RESOURCE's download gate is the only
     // structural delta among the article types.

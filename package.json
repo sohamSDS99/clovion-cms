@@ -49,6 +49,8 @@
     "@tiptap/starter-kit": "^2.10.3",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.34.5",
+    "docx": "^9.7.1",
+    "exceljs": "^4.4.0",
     "ioredis": "5.10.1",
     "mammoth": "^1.12.0",
     "next": "^15.1.4",

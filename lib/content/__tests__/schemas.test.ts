@@ -4,6 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import {
+  courseTypeDataSchema,
   createContentSchema,
   updateContentSchema,
   transitionSchema,
@@ -231,6 +232,99 @@ describe("listContentQuerySchema", () => {
 
   it("rejects an invalid status", () => {
     const r = listContentQuerySchema.safeParse({ status: "LIVE" });
+    expect(r.success).toBe(false);
+  });
+});
+
+// ── COURSE typeData ───────────────────────────────────────────────────────────
+
+describe("courseTypeDataSchema", () => {
+  const UUID = "8f14e45f-ea0e-4bfd-9a29-8f6a304c19dd";
+  const valid = {
+    courseSlug: "chemical-safety-101",
+    courseTitle: "Chemical Safety 101",
+    lessonNumber: 3,
+  };
+
+  it("accepts the minimal required fields", () => {
+    expect(courseTypeDataSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("accepts optional keyLearnings and downloads", () => {
+    const r = courseTypeDataSchema.safeParse({
+      ...valid,
+      keyLearnings: ["Read GHS labels", "Store acids apart"],
+      downloads: [{ mediaAssetId: UUID, label: "Worksheet" }],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("flows through createContentSchema for type COURSE", () => {
+    const r = createContentSchema.safeParse({
+      type: "COURSE",
+      title: "Lesson 3",
+      typeData: valid,
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects a non-kebab courseSlug", () => {
+    const r = courseTypeDataSchema.safeParse({ ...valid, courseSlug: "Not A Slug" });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a missing courseTitle", () => {
+    const { courseTitle: _omit, ...rest } = valid;
+    expect(courseTypeDataSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("rejects lessonNumber below 1", () => {
+    const r = courseTypeDataSchema.safeParse({ ...valid, lessonNumber: 0 });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects lessonNumber above 50", () => {
+    const r = courseTypeDataSchema.safeParse({ ...valid, lessonNumber: 51 });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a non-integer lessonNumber", () => {
+    const r = courseTypeDataSchema.safeParse({ ...valid, lessonNumber: 2.5 });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a download without a label", () => {
+    const r = courseTypeDataSchema.safeParse({
+      ...valid,
+      downloads: [{ mediaAssetId: UUID }],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects a download with a non-uuid mediaAssetId", () => {
+    const r = courseTypeDataSchema.safeParse({
+      ...valid,
+      downloads: [{ mediaAssetId: "not-a-uuid", label: "Worksheet" }],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects more than 6 downloads", () => {
+    const r = courseTypeDataSchema.safeParse({
+      ...valid,
+      downloads: Array.from({ length: 7 }, (_, i) => ({
+        mediaAssetId: UUID,
+        label: `File ${i + 1}`,
+      })),
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("rejects more than 8 keyLearnings", () => {
+    const r = courseTypeDataSchema.safeParse({
+      ...valid,
+      keyLearnings: Array.from({ length: 9 }, (_, i) => `Learning ${i + 1}`),
+    });
     expect(r.success).toBe(false);
   });
 });

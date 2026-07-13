@@ -44,7 +44,7 @@ export function RunLibrary() {
   }, [loadRuns]);
 
   useEffect(() => {
-    const active = runs?.some((r) => !["READY", "FAILED"].includes(r.status));
+    const active = runs?.some((r) => !["READY", "FAILED", "CANCELLED"].includes(r.status));
     if (!active) return;
     const t = setInterval(() => void loadRuns(), 4000);
     return () => clearInterval(t);
@@ -76,7 +76,7 @@ export function RunLibrary() {
               <ul className="divide-y divide-line">
                 {runs.map((run) => {
                   const chan = CHANNELS.find((c) => c.id === run.channel);
-                  const deletable = run.status === "READY" || run.status === "FAILED";
+                  const deletable = ["READY", "FAILED", "CANCELLED"].includes(run.status);
                   return (
                     <li key={run.id} className="flex items-center gap-1">
                       <button

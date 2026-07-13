@@ -3,8 +3,9 @@ import { CHANNELS, channelSpec, isValidPostType, isValidSocialFormat, SOCIAL_FOR
 import { createRunSchema } from "@/lib/contentagent/schemas";
 
 describe("channel registry", () => {
-  it("covers all six channels with at least one post type", () => {
-    expect(CHANNELS).toHaveLength(6);
+  it("covers all channels (incl. legacy) with at least one post type", () => {
+    expect(CHANNELS).toHaveLength(8);
+    expect(CHANNELS.filter((c) => c.legacy)).toHaveLength(2);
     for (const c of CHANNELS) expect(c.postTypes.length).toBeGreaterThan(0);
   });
   it("only report articles require source material", () => {

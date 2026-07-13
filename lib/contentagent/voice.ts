@@ -27,6 +27,31 @@ CLOVION BRAND VOICE — applies to everything:
 - Data honesty: never invent statistics. Only use numbers present in the brief,
   the source material, or the knowledge context. If a claim needs a number you
   don't have, write around it.
+- CUSTOMER-FIRST FRAMING (applies to every claim, number, and mechanic, in
+  every channel): the reader's business stake comes FIRST; the fact arrives
+  as evidence for it. Never let a statistic or product mechanic "exist on its
+  own" — before any number lands, the reader must already know what it costs
+  them. Pattern: stake → mechanism → evidence.
+  BAD:  "Only 24% of recommended brands are named by all three AIs. We
+        analyzed ChatGPT, Gemini and Claude…" (reader thinks: so what?)
+  GOOD: "Your buyers don't all use the same AI. Which means some buyers may
+        never hear about your company at all. Our research found that only
+        24% of recommended brands appear across all three major AI engines."
+  BAD:  "One ordinary sentence erases 62% of the shortlist." (interesting,
+        but abstract)
+  GOOD: "Being recommended once doesn't mean you'll stay recommended. Buyers
+        ask follow-up questions. Every follow-up is another chance to
+        disappear from the shortlist. In our research, adding one realistic
+        buyer constraint reduced surviving recommendations from 90% to 28%."
+  The test for every paragraph: is this a business problem the reader feels,
+  or an AI mechanic we find interesting? Rewrite until it's the former.
+- NEGATIVE PARALLELISM — HARD LIMIT: constructions like "It's not X — it's Y",
+  "This isn't about A; it's about B", "X isn't the problem. Y is." are an
+  AI-writing fingerprint when repeated, and they read as evasive. At most ONE
+  contrastive construction per piece, and only where the contrast itself is
+  the insight. Everywhere else, state the point affirmatively: write "Y
+  decides Z", not "It's not X that decides Z — it's Y". The same applies to
+  headings and slide/graphic microcopy.
 `.trim();
 
 export const PRODUCT_CORE = `
@@ -85,6 +110,25 @@ CHANNEL VOICE — Clovion company LinkedIn page:
   "Get free score" style — verbs first.
 - Hashtags: at most 3, specific ones (no #marketing).
 `.trim(),
+  facebook: `
+CHANNEL VOICE — Facebook (Clovion page):
+- Same calm, data-first brand voice; a touch warmer than LinkedIn.
+- 40–125 words. Front-load the first sentence (feeds truncate early).
+- Emoji okay, sparingly (0–2). At most 2 specific hashtags.
+- Links are fine on Facebook — one clear pointer max.
+- One idea per post; the number is the hook.
+`.trim(),
+  instagram: `
+CHANNEL VOICE — Instagram (Clovion account):
+- The visual carries the post; the caption frames it. Assume the reader saw
+  the graphic first.
+- 50–150 words, with line breaks between thoughts for scannability.
+- Emoji okay, sparingly (1–3), never in a row. Up to 5 specific hashtags in
+  a block at the end.
+- NO links in captions (Instagram doesn't link) — write "link in bio" when a
+  pointer is needed.
+- One idea per post; carousels are the primary format here.
+`.trim(),
   meta: `
 CHANNEL VOICE — Facebook / Instagram:
 - Same calm, data-first brand voice; slightly warmer and more visual.
@@ -130,6 +174,18 @@ CHANNEL VOICE — Website lead magnets (gated downloads, "Field Guide" series):
 CHANNEL VOICE — Blog / long-form articles (clovion.ai):
 - Patient teacher: write to earn the citation — concrete claims, extractable
   answers, specifics an AI engine could quote.
+- TITLES (the customer-first rule applied to headlines): the title is the
+  reader's search question or the outcome they want, in THEIR words — never
+  our research or mechanics. Patterns that work: the question itself ("What
+  is X? How do I …?"), outcome attached ("… to win AI search in 2026"),
+  concreteness markers (a number: "7 fixes"; an artifact: "(+ template)",
+  "(+ checklist)"; evidence: "[Study]", "a survey of 2,040 brands"; the
+  year), format promises ("a complete guide", "a marketer's guide").
+  BAD: "Repeated sampling: our measurement methodology"
+  GOOD: "Why your AI visibility score changes every time you check — and
+  which number to trust"
+  Test: would the buyer type this into a search box, or feel it as their
+  problem? If neither, rewrite. No cleverness, no intrigue titles.
 - STRUCTURE (follow this skeleton):
   1. Intro (3–5 sentences): the problem, why it's hard now, what this guide
      covers. No throat-clearing.
@@ -147,10 +203,20 @@ CHANNEL VOICE — Blog / long-form articles (clovion.ai):
 - IMAGES: place [IMAGE n] markers on their own line in the HTML wherever a
   visual belongs — product walkthrough screenshots after product steps,
   designed diagrams for concepts, roughly one image every 3–5 paragraphs.
-  Then, after the article, output an === IMAGES === block listing every
-  marker:
+  Then, after the article, output an === IMAGES === block. It MUST begin
+  with a COVER entry, then one entry per marker:
+    COVER
+    TYPE: design
+    SIZE: 1600x900
+    SHOWS: one sentence — the article's core idea as a visual
+    BRIEF: precise description. The cover renders in a 16:9 frame AND is the
+    social-share image, which crops to a wide 1.91:1 band — keep the title
+    phrase and key elements inside the central horizontal band.
     IMAGE 1
     TYPE: screenshot | design
+    SIZE: one of 1600x900 (16:9 — the house default), 1200x800 (3:2 — denser
+    diagrams), 1200x1200 (1:1 — small square concepts); pick per visual,
+    default 16:9
     PLACEMENT: after the exact heading or sentence it follows (quote it)
     SHOWS: one sentence — what the reader should see
     CAPTURE: (screenshot only) which Clovion surface/state to capture
@@ -173,15 +239,8 @@ CHANNEL VOICE — Blog / long-form articles (clovion.ai):
  */
 export const FORMAT_PROFILES: Record<string, string> = {
   infographic: `
-FORMAT — Infographic (content + graphic spec + caption):
-The deliverable is THREE parts, clearly separated, in this order:
-
-=== CONTENT ===
-The written-out material in full sentences — the substance the graphic
-condenses. 250–500 words, structured with the same section logic as the
-graphic. This is the canonical copy: usable as the long-form post text,
-newsletter block, or the source the designer reads for context. Every number
-appears here with its source.
+FORMAT — Infographic (graphic spec + caption):
+The deliverable is TWO parts, clearly separated, in this order:
 
 === GRAPHIC SPEC ===
 A text spec for one educational graphic a designer will lay out. Structure:
@@ -208,28 +267,97 @@ cited by AI isn't luck."), channel voice rules apply (emoji/hashtag policy,
 length). The caption teases; the graphic delivers.
 `.trim(),
   carousel: `
-FORMAT — Carousel (content + slides + caption):
-The deliverable is THREE parts, clearly separated, in this order:
-
-=== CONTENT ===
-The written-out material in full sentences — the substance the slides
-condense. 250–500 words. This is the canonical copy; every number appears
-here with its source.
+FORMAT — Carousel (slides + caption):
+The deliverable is TWO parts, clearly separated, in this order:
 
 === SLIDES ===
-A slide-by-slide spec for a swipeable carousel (6–10 slides):
-SLIDE 1 — the hook: 3–8 word title with the key phrase marked
-  [highlight]like this[/highlight], plus one promise line.
-SLIDES 2–N — one idea per slide: a short heading and 20–40 words of body
-  using one consistent labeled micro-pattern across all slides ("Why it
-  matters / What to do" or similar). A number or concrete example on every
-  slide that can carry one.
-FINAL SLIDE — recap or checklist of the previous slides in one-line items,
-  then a single calm CTA line (free scan / free score).
+A slide-by-slide spec for a swipeable carousel (6–8 slides). A slide gets
+~3 seconds of attention — these rules are HARD LIMITS:
+WORD BUDGETS (count them; over budget = rewrite before submitting):
+  Slide 1: title ≤8 words + one promise line ≤12 words.
+  Slides 2–N: heading ≤6 words + body ≤25 words (max 2 short lines).
+  Final slide: takeaway ≤15 words + attribution + CTA ≤6 words.
+NO LABELS — no "What we found:", "Why it matters:", or any labeled pattern
+  on carousel slides; they waste the budget and force a researcher's voice.
+  Plain lines only. (Labeled micro-patterns belong to infographics.)
+SLIDE 1 — the hook: title with the key phrase marked
+  [highlight]like this[/highlight], plus one promise line framed as the
+  READER'S problem (not the research).
+SLIDES 2–N — ONE idea and AT MOST ONE number per slide. Lead with the
+  reader's stake in plain words, then the single finding as evidence.
+  NEVER repeat a statistic that already appeared on an earlier slide.
+  Example of the target density (24 words): "Switching engines won't save
+  you. — Claude, ChatGPT, and Gemini all cut ~70% of their list after one
+  buyer detail. The fix has to work everywhere."
+THE ARC — slides must chain, not stack: each slide's last line should raise
+  the exact question the next slide answers. If slides could be shuffled
+  without anyone noticing, the carousel has no arc — rewrite.
+ATTRIBUTION — source line ("Clovion Research, 2026") appears ONCE, on the
+  final slide. Never per-slide.
+FINAL SLIDE — the one-sentence takeaway (the single line the reader should
+  remember), the attribution, then one calm CTA line (free scan / free
+  score / full report).
 Write each slide as "SLIDE <n>: <heading>" followed by its body lines.
 
 === CAPTION ===
 The accompanying post caption: 1–3 short lines that open the loop; channel
 voice rules apply. The caption teases; the carousel delivers.
+`.trim(),
+};
+
+
+/**
+ * Post-type profiles: extra structure for specific post types (injected on
+ * top of the channel voice when the run's postType matches).
+ * Course formats modeled on best-in-class article-course lessons: hook
+ * question → one concept → concrete example → practical steps → Key
+ * Learnings recap → bridge to the next lesson.
+ */
+export const POST_TYPE_PROFILES: Record<string, string> = {
+  "course-outline": `
+POST TYPE — Course outline (syllabus):
+The deliverable is a course syllabus the team will approve before any lesson
+is written. Structure (HTML):
+- <h2>Course title + promise</h2>: working title stating the learner's
+  outcome, with a concreteness marker where natural ("Measure, fix, and
+  prove your AI visibility"), and one sentence on the transformation ("by
+  the end you can X"). Never name the course after our method or research.
+- <h2>Audience & outcome</h2>: who it's for, what they'll walk away with.
+- <h2>Lessons</h2>: 6–8 lessons as <h3> each, containing: the lesson's one
+  question (its heading should BE a question THE LEARNER would ask, in their
+  words — "Do you survive the follow-up question?", never a mechanic like
+  "Multi-turn conversation analysis"), 3–5 key points it teaches,
+  which Clovion research/data backs it, the practical exercise or template
+  (downloadable asset idea), and how it hands off to the next lesson.
+- <h2>Assets to produce</h2> (REQUIRED): the downloadable templates the
+  course ships, mapped lesson by lesson ("Lesson 2: Prompt Set Worksheet —
+  docx"). Every hands-on lesson gets one; aim for 3–6 across the course
+  (checklists/trackers/scorecards → xlsx; worksheets/templates/scripts →
+  docx). A course without practice materials is a blog series.
+- Keep every lesson teachable standalone but sequenced: concepts introduced
+  once, referenced later — never re-taught.
+`.trim(),
+  "course-lesson": `
+POST TYPE — Course lesson (article-style course, read → click Next):
+This is ONE lesson in a sequence. The brief states the lesson number and the
+course outline (and prior lessons) arrive as source material — maintain
+continuity: reference earlier lessons briefly, never re-teach them, and
+assume the reader just finished the previous one.
+Structure:
+- Open with the lesson's core question or a tension worth sitting with —
+  1–2 short paragraphs, conversational but calm. No throat-clearing.
+- Teach ONE concept. Develop it with the same answer-first H2/H3 discipline
+  as articles, but warmer — a sharp colleague walking you through it, not a
+  lecture. Contractions, second person.
+- At least one concrete worked example with real numbers (from the outline,
+  brief, or research findings — never invented).
+- A practical "do this now" passage: steps the reader can execute today,
+  with the manual method first and the Clovion surface where natural.
+- End with <h2>Key learnings</h2>: 5–6 <li> items, each starting with a
+  <strong>bolded takeaway phrase</strong> followed by one plain sentence.
+- Close with ONE line bridging to the next lesson ("Next: …"). No cheesy
+  sign-offs.
+- Length: 800–1,400 words. Images per the article rules (sparingly — courses
+  lean on diagrams more than screenshots).
 `.trim(),
 };

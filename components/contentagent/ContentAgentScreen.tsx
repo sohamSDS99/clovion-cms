@@ -10,22 +10,34 @@ import type { AgentRun, AgentLesson } from "@prisma/client";
 import { PageHeader, PageBody } from "@/components/shell/PageHeader";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FieldShell, Select, Textarea } from "@/components/ui/Field";
+import { FieldShell, Input, Select, Textarea } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/ui/client";
 import { CHANNELS } from "@/lib/contentagent/channels";
+import { sizeOptionsFor } from "@/lib/contentagent/sizes";
+import {
+  UI_CHANNELS,
+  profilesFor,
+  contentTypesFor,
+  anglesFor,
+  needsSourceReport,
+  resolveSelection,
+} from "@/lib/contentagent/ui";
 
 export function ContentAgentScreen() {
   const router = useRouter();
   const toast = useToast();
 
-  const [channel, setChannel] = useState(CHANNELS[0].id);
-  const [postType, setPostType] = useState(CHANNELS[0].postTypes[0].id);
-  const [format, setFormat] = useState<string>(CHANNELS[0].socialFormats?.[0]?.id ?? "");
+  const [uiChannel, setUiChannel] = useState(UI_CHANNELS[0].id);
+  const [profile, setProfile] = useState<string | null>("personal");
+  const [contentType, setContentType] = useState("text-post");
+  const [angle, setAngle] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
   const [sourceReport, setSourceReport] = useState("");
   const [attachments, setAttachments] = useState<{ name: string; text: string }[]>([]);
   const [allowResearch, setAllowResearch] = useState(true);
+  const [designSize, setDesignSize] = useState<string>("auto");
+  const [keywordsInput, setKeywordsInput] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -33,10 +45,24 @@ export function ContentAgentScreen() {
 
   const [lessons, setLessons] = useState<AgentLesson[]>([]);
 
-  const spec = useMemo(
-    () => CHANNELS.find((c) => c.id === channel) ?? CHANNELS[0],
-    [channel]
+  const profileOptions = profilesFor(uiChannel);
+  const contentTypeOptions = contentTypesFor(uiChannel);
+  const angleOptions = useMemo(
+    () => anglesFor(uiChannel, profile, contentType),
+    [uiChannel, profile, contentType]
   );
+  const effectiveAngle = angle ?? angleOptions?.[0]?.id ?? null;
+  const resolvedPreview = useMemo(() => {
+    try {
+      return resolveSelection(uiChannel, profile, contentType, effectiveAngle);
+    } catch {
+      return null;
+    }
+  }, [uiChannel, profile, contentType, effectiveAngle]);
+  const sizeOptions = resolvedPreview
+    ? sizeOptionsFor(resolvedPreview.channel, resolvedPreview.format ?? null)
+    : null;
+  const showSource = needsSourceReport(uiChannel, contentType, effectiveAngle);
 
   useEffect(() => {
     api
@@ -73,16 +99,25 @@ export function ContentAgentScreen() {
       const attachmentText = attachments
         .map((a) => `--- REFERENCE: ${a.name} ---\n${a.text}`)
         .join("\n\n");
-      const combinedSource = [
-        spec.requiresSource && sourceReport ? sourceReport : "",
-        attachmentText,
-      ]
+      const combinedSource = [showSource && sourceReport ? sourceReport : "", attachmentText]
         .filter(Boolean)
         .join("\n\n");
+      const resolved = resolveSelection(uiChannel, profile, contentType, effectiveAngle);
+      const keywords = keywordsInput
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean)
+        .slice(0, 10);
       const res = await api.post<{ data: AgentRun }>("/api/content-agent/runs", {
-        channel,
-        postType,
-        ...(spec.socialFormats && format ? { format } : {}),
+        channel: resolved.channel,
+        postType: resolved.postType,
+        ...(keywords.length > 0 ? { keywords } : {}),
+        ...(sizeOptions && designSize !== "auto" ? { designSize } : {}),
+        ...(resolved.format && resolved.format !== "static"
+          ? { format: resolved.format }
+          : resolved.format === "static"
+            ? { format: "static" }
+            : {}),
         brief,
         allowResearch,
         ...(combinedSource ? { sourceReport: combinedSource } : {}),
@@ -96,7 +131,8 @@ export function ContentAgentScreen() {
   }
 
   const briefTooShort = brief.trim().length < 10;
-  const missingSource = spec.requiresSource && sourceReport.trim().length === 0;
+  const missingSource =
+    showSource && sourceReport.trim().length === 0 && attachments.length === 0;
 
   return (
     <>
@@ -119,15 +155,16 @@ export function ContentAgentScreen() {
             <div className="flex flex-col gap-4 p-4 pt-0">
               <FieldShell label="Channel">
                 <Select
-                  value={channel}
+                  value={uiChannel}
                   onChange={(e) => {
-                    const next = CHANNELS.find((c) => c.id === e.target.value)!;
-                    setChannel(next.id);
-                    setPostType(next.postTypes[0].id);
-                    setFormat(next.socialFormats?.[0]?.id ?? "");
+                    const next = e.target.value;
+                    setUiChannel(next);
+                    setProfile(next === "LINKEDIN" ? "personal" : null);
+                    setContentType(next === "WEBSITE" ? "blog-article" : "text-post");
+                    setAngle(null);
                   }}
                 >
-                  {CHANNELS.map((c) => (
+                  {UI_CHANNELS.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}
                     </option>
@@ -135,33 +172,54 @@ export function ContentAgentScreen() {
                 </Select>
               </FieldShell>
 
-              {spec.socialFormats ? (
-                <FieldShell
-                  label="Format"
-                  hint="How the post is delivered — decides what the writer produces."
-                >
-                  <Select value={format} onChange={(e) => setFormat(e.target.value)}>
-                    {spec.socialFormats.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.label}
+              {profileOptions ? (
+                <FieldShell label="Profile" hint="Which voice this is written in.">
+                  <Select
+                    value={profile ?? profileOptions[0].id}
+                    onChange={(e) => {
+                      setProfile(e.target.value);
+                      setAngle(null);
+                    }}
+                  >
+                    {profileOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
                       </option>
                     ))}
                   </Select>
                 </FieldShell>
               ) : null}
 
-              <FieldShell label="Type of post">
+              <FieldShell label="Content type">
                 <Select
-                  value={postType}
-                  onChange={(e) => setPostType(e.target.value)}
+                  value={contentType}
+                  onChange={(e) => {
+                    setContentType(e.target.value);
+                    setAngle(null);
+                  }}
                 >
-                  {spec.postTypes.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
+                  {contentTypeOptions.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
                     </option>
                   ))}
                 </Select>
               </FieldShell>
+
+              {angleOptions ? (
+                <FieldShell label="Angle" hint="The editorial slant.">
+                  <Select
+                    value={effectiveAngle ?? ""}
+                    onChange={(e) => setAngle(e.target.value)}
+                  >
+                    {angleOptions.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FieldShell>
+              ) : null}
 
               <FieldShell
                 label="Brief"
@@ -237,7 +295,36 @@ export function ContentAgentScreen() {
                 </ul>
               ) : null}
 
-              {spec.requiresSource ? (
+              {sizeOptions ? (
+                <FieldShell
+                  label="Size"
+                  hint="Platform-supported artboards; Auto lets the orchestrator pick for the content."
+                >
+                  <Select value={designSize} onChange={(e) => setDesignSize(e.target.value)}>
+                    <option value="auto">Auto — agent recommends</option>
+                    {sizeOptions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FieldShell>
+              ) : null}
+
+              {uiChannel === "WEBSITE" ? (
+                <FieldShell
+                  label="SEO keywords"
+                  hint="Comma-separated; the first is the primary keyword (title, intro, one heading)."
+                >
+                  <Input
+                    value={keywordsInput}
+                    onChange={(e) => setKeywordsInput(e.target.value)}
+                    placeholder="ai visibility tracking, geo optimization, ai search"
+                  />
+                </FieldShell>
+              ) : null}
+
+              {showSource ? (
                 <FieldShell
                   label="Source report"
                   hint="Paste the raw report text — the article's numbers come only from here."
