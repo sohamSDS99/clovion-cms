@@ -125,6 +125,11 @@ export interface AiConfig {
   id: string;
   hasKey: boolean;
   openrouterApiKeyMasked: string | null;
+  hasAnthropicKey: boolean;
+  anthropicApiKeyMasked: string | null;
+  hasOpenaiKey: boolean;
+  openaiApiKeyMasked: string | null;
+  agentModels: Record<string, string>;
   defaultModel: string | null;
   embeddingModel: string | null;
   maxTokens: number;

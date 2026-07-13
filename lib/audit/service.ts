@@ -13,6 +13,7 @@ export type AuditEntityType =
   | "media"
   | "sop"
   | "kb"
+  | "agent_run"
   | "config"
   | "author_profile";
 

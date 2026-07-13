@@ -7,8 +7,9 @@ import type { Role } from "@/lib/ui/types";
 import { ProfileSettings } from "./ProfileSettings";
 import { WritingStyle } from "./WritingStyle";
 import { UserManagement } from "./UserManagement";
+import { AiSettings } from "./AiSettings";
 
-export type SettingsTab = "profile" | "writing" | "users";
+export type SettingsTab = "profile" | "writing" | "ai" | "users";
 
 interface SettingsUser {
   id: string;
@@ -29,6 +30,12 @@ const TABS: {
     label: "Writing Style",
     icon: <IconWand />,
     roles: ["ADMIN", "EDITOR"],
+  },
+  {
+    id: "ai",
+    label: "AI Provider",
+    icon: <IconWand />,
+    roles: ["ADMIN"],
   },
   {
     id: "users",
@@ -101,6 +108,8 @@ export function SettingsTabs({
           <ProfileSettings email={user.email} />
         ) : tab === "writing" ? (
           <WritingStyle canEdit={user.role === "ADMIN" || user.role === "EDITOR"} />
+        ) : tab === "ai" ? (
+          <AiSettings />
         ) : (
           <UserManagement currentUserId={user.id} />
         )}

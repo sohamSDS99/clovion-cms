@@ -7,7 +7,11 @@
  * which is `vector(1536)` in the schema).
  */
 import { createOpenRouterClient } from "@/lib/ai/openrouter";
-import { getConfig, getDecryptedKey } from "@/lib/ai/config";
+import {
+  getConfig,
+  getDecryptedKey,
+  getDecryptedOpenaiKey,
+} from "@/lib/ai/config";
 import { BadRequestError } from "@/lib/api/http";
 import type { TextChunk } from "@/lib/kb/chunk";
 
@@ -17,18 +21,51 @@ const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
 /** Dimensionality of the pgvector column (`vector(1536)` in schema.prisma). */
 export const EMBEDDING_DIM = 1536;
 
-/** Resolves the embedding client + model, throwing a clear error if unconfigured. */
+/** Resolves the embedding client + model, throwing a clear error if unconfigured.
+ * Prefers a direct OpenAI key; falls back to the legacy OpenRouter key. */
 async function resolveEmbedder(): Promise<{ model: string; embed: (input: string[]) => Promise<number[][]> }> {
+  const config = await getConfig();
+  const model = config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+
+  const openaiKey = await getDecryptedOpenaiKey();
+  if (openaiKey) {
+    // Direct OpenAI embeddings; strip any gateway-style "openai/" prefix.
+    const directModel = model.replace(/^openai\//, "");
+    return {
+      model: directModel,
+      async embed(input: string[]): Promise<number[][]> {
+        const res = await fetch("https://api.openai.com/v1/embeddings", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${openaiKey}`,
+          },
+          body: JSON.stringify({ model: directModel, input }),
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          throw new BadRequestError(
+            `OpenAI embeddings error ${res.status}: ${body.slice(0, 200)}`
+          );
+        }
+        const data = (await res.json()) as {
+          data: { index: number; embedding: number[] }[];
+        };
+        return data.data
+          .slice()
+          .sort((a, b) => a.index - b.index)
+          .map((d) => d.embedding);
+      },
+    };
+  }
+
   const key = await getDecryptedKey();
   if (!key) {
     throw new BadRequestError(
-      "No OpenRouter API key configured. Set one in AI provider settings before ingesting."
+      "No embedding provider configured. Add an OpenAI API key (or legacy OpenRouter key) in Settings → AI Provider before ingesting."
     );
   }
-  const config = await getConfig();
-  const model = config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
   const client = createOpenRouterClient(key);
-
   return {
     model,
     async embed(input: string[]): Promise<number[][]> {

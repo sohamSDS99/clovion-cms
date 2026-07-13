@@ -22,6 +22,11 @@ export function AiSettings() {
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<AiModel[]>([]);
   const [apiKey, setApiKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [orchestratorModel, setOrchestratorModel] = useState("");
+  const [writerModel, setWriterModel] = useState("");
+  const [qaModel, setQaModel] = useState("");
   const [defaultModel, setDefaultModel] = useState("");
   const [embeddingModel, setEmbeddingModel] = useState("");
   const [maxTokens, setMaxTokens] = useState("4000");
@@ -41,6 +46,9 @@ export function AiSettings() {
         setMaxTokens(String(c.maxTokens));
         setTemperature(String(c.temperature));
         setBudget(c.monthlyBudgetUsd ?? "");
+        setOrchestratorModel(c.agentModels?.orchestrator ?? "");
+        setWriterModel(c.agentModels?.writer ?? "");
+        setQaModel(c.agentModels?.qa ?? "");
       })
       .catch((e) => setError(errorMessage(e)));
   }, []);
@@ -69,9 +77,18 @@ export function AiSettings() {
         monthlyBudgetUsd: budget ? Number(budget) : null,
       };
       if (apiKey.trim()) body.apiKey = apiKey.trim();
+      if (anthropicKey.trim()) body.anthropicApiKey = anthropicKey.trim();
+      if (openaiKey.trim()) body.openaiApiKey = openaiKey.trim();
+      const agentModels: Record<string, string> = {};
+      if (orchestratorModel.trim()) agentModels.orchestrator = orchestratorModel.trim();
+      if (writerModel.trim()) agentModels.writer = writerModel.trim();
+      if (qaModel.trim()) agentModels.qa = qaModel.trim();
+      body.agentModels = agentModels;
       const updated = await api.put<AiConfig>("/api/settings/ai", body);
       setConfig(updated);
       setApiKey("");
+      setAnthropicKey("");
+      setOpenaiKey("");
       toast.success("Settings saved.");
     } catch (e) {
       toast.error(errorMessage(e));
@@ -104,11 +121,76 @@ export function AiSettings() {
     <>
       <PageHeader title="Settings" description="AI provider, models, and budget." />
       <PageBody>
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-2xl space-y-6">
           <Card>
             <CardHeader
-              title="OpenRouter"
-              subtitle="The sole LLM gateway for AI writing (Phase 2)."
+              title="Direct providers"
+              subtitle="Anthropic powers the Content Agent's planning/writing; OpenAI powers QA and embeddings."
+              action={
+                config.hasAnthropicKey && config.hasOpenaiKey ? (
+                  <Badge tone="published">Keys set</Badge>
+                ) : (
+                  <Badge tone="review">Setup needed</Badge>
+                )
+              }
+            />
+            <div className="space-y-4 p-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Anthropic API key"
+                  type="password"
+                  placeholder={config.anthropicApiKeyMasked ?? "sk-ant-…"}
+                  value={anthropicKey}
+                  onChange={(e) => setAnthropicKey(e.target.value)}
+                  hint={config.hasAnthropicKey ? "leave blank to keep current" : "console.anthropic.com"}
+                  autoComplete="off"
+                />
+                <Input
+                  label="OpenAI API key"
+                  type="password"
+                  placeholder={config.openaiApiKeyMasked ?? "sk-…"}
+                  value={openaiKey}
+                  onChange={(e) => setOpenaiKey(e.target.value)}
+                  hint={config.hasOpenaiKey ? "leave blank to keep current" : "platform.openai.com"}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Input
+                  label="Orchestrator model"
+                  placeholder="claude-fable-5"
+                  value={orchestratorModel}
+                  onChange={(e) => setOrchestratorModel(e.target.value)}
+                />
+                <Input
+                  label="Writer model"
+                  placeholder="claude-sonnet-5"
+                  value={writerModel}
+                  onChange={(e) => setWriterModel(e.target.value)}
+                />
+                <Input
+                  label="QA model"
+                  placeholder="gpt-5.2"
+                  value={qaModel}
+                  onChange={(e) => setQaModel(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-ink-faint">
+                Leave a model blank to use its default (shown as placeholder).
+                claude-* ids call Anthropic; gpt-* ids call OpenAI.
+              </p>
+              <div className="flex justify-end border-t border-line pt-4">
+                <Button variant="primary" loading={saving} onClick={save}>
+                  Save settings
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="OpenRouter (legacy)"
+              subtitle="Optional gateway used by the in-editor AI Write feature."
               action={
                 config.hasKey ? (
                   <Badge tone="published">Key set</Badge>

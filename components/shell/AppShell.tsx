@@ -133,6 +133,8 @@ function AppShellInner({
   const kbActive =
     pathname === "/knowledge-base" || pathname.startsWith("/knowledge-base/");
   const mediaActive = pathname === "/media" || pathname.startsWith("/media/");
+  const contentAgentActive =
+    pathname === "/content-agent" || pathname.startsWith("/content-agent/");
   const authorProfilesActive =
     pathname === "/author-profiles" || pathname.startsWith("/author-profiles/");
   const dashboardActive = pathname === "/";
@@ -203,6 +205,15 @@ function AppShellInner({
 
           {/* WORKSPACE */}
           <SectionLabel>Workspace</SectionLabel>
+
+          <NavLink
+            href="/content-agent"
+            active={contentAgentActive}
+            icon={<IconSpark />}
+            onNavigate={closeMobile}
+          >
+            Content Agent
+          </NavLink>
 
           {showKnowledgeBase ? (
             <NavLink
@@ -413,6 +424,9 @@ function IconImage() {
 }
 function IconUsers() {
   return <Svg><circle cx="9" cy="8" r="3.2" /><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" /><path d="M16 4.5a3.2 3.2 0 0 1 0 7" /><path d="M21 20v-1a5 5 0 0 0-4-4.9" /></Svg>;
+}
+function IconSpark() {
+  return <Svg><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z" /></Svg>;
 }
 function IconBook() {
   return <Svg><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 0-3 3z" /><path d="M18 7v13" /></Svg>;

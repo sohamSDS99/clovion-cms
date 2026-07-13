@@ -329,12 +329,17 @@ model KnowledgeBaseChunk {
 
 model AIProviderConfig {
   id                        String   @id @default(uuid()) @db.Uuid
-  openrouterApiKeyEncrypted String? // encrypted at rest
+  openrouterApiKeyEncrypted String? // encrypted at rest (legacy in-editor AI Write)
+  anthropicApiKeyEncrypted  String? // encrypted at rest (Content Agent: orchestrator/writer)
+  openaiApiKeyEncrypted     String? // encrypted at rest (Content Agent: QA + embeddings)
   defaultModel              String?
   embeddingModel            String?
   maxTokens                 Int      @default(4000)
   temperature               Float    @default(0.7)
   monthlyBudgetUsd          Decimal? @db.Decimal(10, 2)
+  // Per-role model overrides for the Content Agent pipeline:
+  // { "orchestrator": "...", "writer": "...", "qa": "..." } (OpenRouter ids).
+  agentModels               Json     @default("{}")
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
   updatedById               String?  @db.Uuid
@@ -541,4 +546,119 @@ model LeadSubmission {
   @@index([leadFormId, createdAt])
   @@index([contentId])
   @@map("lead_submissions")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AGENT API KEYS — scoped keys for the external agent API (/api/agent/v1).
+// Plaintext keys are shown once at mint time; only a sha256 hash is stored.
+// Draft-only by scope: v1 issues ["content:draft:create"] and nothing else.
+// ──────────────────────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String
+  // sha256 hex digest of the plaintext key. Never store or log the plaintext.
+  keyHash         String    @unique
+  // Non-secret display prefix (e.g. "agk_1a2b3c4d") for identifying keys in logs/UI.
+  keyPrefix       String
+  // Capability scopes, e.g. "content:draft:create". Checked on every request.
+  scopes          String[]  @default([])
+  // Byline for content created with this key (typically an isGhost AuthorProfile).
+  // FK-less by convention (see header note on generic creator columns).
+  authorProfileId String?   @db.Uuid
+  // Admin who minted the key. FK-less by convention.
+  createdById     String?   @db.Uuid
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("api_keys")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CONTENT AGENT — multi-role generation runs (orchestrator → writer → QA).
+// Runs are a library: every generation is kept, statused, and reusable.
+// Output is ALWAYS a draft-side artifact; "send to blog" creates a DRAFT
+// ContentItem through the normal create path (never publishes).
+// ──────────────────────────────────────────────────────────────────────────────
+
+enum AgentChannel {
+  LINKEDIN_PERSONAL
+  LINKEDIN_COMPANY
+  META_SOCIAL
+  BLOG_ARTICLE
+  REPORT_ARTICLE
+  WEBSITE
+}
+
+enum AgentRunStatus {
+  QUEUED
+  PLANNING
+  WRITING
+  QA
+  REVISING
+  READY
+  FAILED
+}
+
+model AgentRun {
+  id           String         @id @default(uuid()) @db.Uuid
+  channel      AgentChannel
+  postType     String
+  // Visual format (social channels): static, infographic, carousel.
+  format       String?
+  // Allow the orchestrator to run quick web research to back claims with data.
+  allowResearch Boolean       @default(true)
+  brief        String         @db.Text
+  // Raw source material (e.g. a research report) for REPORT_ARTICLE runs.
+  sourceReport String?        @db.Text
+  status       AgentRunStatus @default(QUEUED)
+  // Orchestrator output: { angle, structure, keyPoints, mustInclude, ... }
+  plan         Json?
+  // Primary deliverable: the written-out content (articles: HTML).
+  draftText    String?        @db.Text
+  // Graphic/slide spec (infographic & carousel runs) — editable separately.
+  specText     String?        @db.Text
+  // Accompanying caption (infographic/carousel runs) — editable separately.
+  captionText  String?        @db.Text
+  // QA verdict: { pass, scores: {...}, requiredFixes: [], notes }
+  qaReport     Json?
+  revisionRounds Int          @default(0)
+  // User feedback history: [{ at, note }]
+  feedback     Json           @default("[]")
+  error        Json?
+  tokensPrompt     Int        @default(0)
+  tokensCompletion Int        @default(0)
+  costUsd          Decimal    @default(0) @db.Decimal(10, 4)
+  // Set when an article run is filed into the blog (ContentItem id).
+  contentId    String?        @db.Uuid
+  // Approval: marks the run as shipped; triggers the learning pass.
+  approvedAt   DateTime?
+  // Snapshot of the first READY output (pre-feedback/pre-edits) for learning.
+  firstOutput  String?        @db.Text
+  createdById  String?        @db.Uuid
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("agent_runs")
+}
+
+// Durable style rules learned from approved runs (first output vs shipped).
+// Injected into future prompts for the same channel; deletable in the UI.
+model AgentLesson {
+  id          String       @id @default(uuid()) @db.Uuid
+  channel     AgentChannel
+  format      String?
+  lesson      String       @db.Text
+  sourceRunId String?      @db.Uuid
+  isActive    Boolean      @default(true)
+  createdById String?      @db.Uuid
+  createdAt   DateTime     @default(now())
+
+  @@index([channel, isActive, createdAt])
+  @@map("agent_lessons")
 }
