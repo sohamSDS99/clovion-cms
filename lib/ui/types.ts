@@ -5,7 +5,7 @@
  * the API contract.
  */
 
-export type ContentType = "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ";
+export type ContentType = "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "COURSE" | "FAQ";
 
 export type ContentStatus =
   | "DRAFT"

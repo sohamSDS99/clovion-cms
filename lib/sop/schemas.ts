@@ -10,6 +10,7 @@ export const contentTypeEnum = z.enum([
   "WEBINAR",
   "NEWS",
   "RESOURCE",
+  "COURSE",
   "FAQ",
 ]);
 

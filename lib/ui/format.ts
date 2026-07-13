@@ -52,6 +52,8 @@ export function contentTypeLabel(type: ContentType): string {
       return "News";
     case "RESOURCE":
       return "Resource";
+    case "COURSE":
+      return "Course Lesson";
     case "FAQ":
       return "FAQ";
     default:
@@ -72,6 +74,8 @@ export function contentTypePlural(type: ContentType): string {
       return "News";
     case "RESOURCE":
       return "Resources";
+    case "COURSE":
+      return "Course Lessons";
     case "FAQ":
       return "FAQ Articles";
     default:
@@ -85,6 +89,7 @@ export const CONTENT_TYPES: ContentType[] = [
   "WEBINAR",
   "NEWS",
   "RESOURCE",
+  "COURSE",
   "FAQ",
 ];
 
@@ -97,6 +102,7 @@ export const CONTENT_TYPE_ORDER: ContentType[] = [
   "RESEARCH",
   "NEWS",
   "RESOURCE",
+  "COURSE",
   "FAQ",
   "WEBINAR",
 ];

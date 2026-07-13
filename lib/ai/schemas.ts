@@ -43,6 +43,7 @@ export const aiContentTypeSchema = z.enum([
   "WEBINAR",
   "NEWS",
   "RESOURCE",
+  "COURSE",
   "FAQ",
 ]);
 

@@ -17,6 +17,7 @@ export const contentTypeSchema = z.enum([
   "WEBINAR",
   "NEWS",
   "RESOURCE",
+  "COURSE",
   "FAQ",
 ]);
 export type ContentTypeInput = z.infer<typeof contentTypeSchema>;
@@ -67,7 +68,7 @@ const faqItemsField = { faqItems: z.array(faqItemSchema).optional() };
 /** BLOG has no extra structured fields beyond the optional FAQ section. */
 export const blogTypeDataSchema = z.object({ ...faqItemsField }).passthrough();
 
-/** WEBINAR: scheduling + registration details (+ uploaded video). */
+/** WEBINAR: scheduling + registration details. */
 export const webinarTypeDataSchema = z
   .object({
     startAt: z.string().datetime().optional(),
@@ -76,8 +77,6 @@ export const webinarTypeDataSchema = z
     registrationUrl: z.string().url().optional(),
     speakerNames: z.array(z.string()).optional(),
     recordingUrl: z.string().url().optional(),
-    /** Uploaded webinar video (MediaAsset ref, kind VIDEO). */
-    videoAssetId: uuid.optional(),
   })
   .passthrough();
 
@@ -105,6 +104,34 @@ export const newsTypeDataSchema = z
   .passthrough();
 
 /**
+ * COURSE: one lesson inside a multi-lesson course. Lessons are grouped by
+ * `courseSlug` (every lesson of a course shares it) and ordered by the 1-based
+ * `lessonNumber`. `downloads` reference media-library assets; the public layer
+ * resolves them to URLs (a bare mediaAssetId is never exposed publicly).
+ */
+export const courseTypeDataSchema = z
+  .object({
+    courseSlug: z
+      .string()
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Course slug must be kebab-case [a-z0-9-].")
+      .max(200),
+    courseTitle: z.string().min(1).max(200),
+    lessonNumber: z.number().int().min(1).max(50),
+    keyLearnings: z.array(z.string().min(1).max(300)).max(8).optional(),
+    downloads: z
+      .array(
+        z.object({
+          mediaAssetId: z.string().uuid(),
+          label: z.string().min(1).max(120),
+        }),
+      )
+      .max(6)
+      .optional(),
+    ...faqItemsField,
+  })
+  .passthrough();
+
+/**
  * Validate `typeData` against the schema for a given content type.
  * Returns the parsed payload or throws ZodError. Used inside create/update
  * superRefine so errors surface as 422 with field paths.
@@ -121,6 +148,8 @@ export function typeDataSchemaFor(type: ContentTypeInput) {
       return webinarTypeDataSchema;
     case "RESOURCE":
       return resourceTypeDataSchema;
+    case "COURSE":
+      return courseTypeDataSchema;
     case "NEWS":
       return newsTypeDataSchema;
   }

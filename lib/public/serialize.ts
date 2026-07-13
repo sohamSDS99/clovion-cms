@@ -77,6 +77,17 @@ export interface PublicCoverImage {
   height: number | null;
 }
 
+/**
+ * A COURSE lesson download, resolved to its public URL by the query layer
+ * (`resolveCourseDownloads`). The raw `typeData.downloads` entries only carry a
+ * mediaAssetId — that id is never exposed publicly without its URL.
+ */
+export interface PublicCourseDownload {
+  label: string;
+  url: string;
+  filename: string | null;
+}
+
 /** Full public content payload (single-item endpoint). */
 export interface PublicContent {
   id: string;
@@ -202,6 +213,7 @@ function isGatedResource(item: ContentItem): boolean {
 function toPublicTypeData(
   item: ContentItem,
   downloadUrl?: string | null,
+  courseDownloads?: PublicCourseDownload[] | null,
 ): Record<string, unknown> {
   const td = (item.typeData ?? {}) as Record<string, unknown>;
   // Optional embeddable FAQ section — exposed for every article-shaped type so
@@ -217,10 +229,6 @@ function toPublicTypeData(
         registrationUrl: td.registrationUrl,
         speakers: td.speakers,
         durationMinutes: td.durationMinutes,
-        recordingUrl: td.recordingUrl,
-        // Uploaded webinar video (typeData.videoAssetId) resolved to its
-        // public URL by the query layer — webinars are never gated.
-        videoUrl: downloadUrl ?? undefined,
       };
     // RESOURCE is a gated downloadable report. A gated item NEVER emits its
     // file/pdf URL (NFR-SEC-03/NG3).
@@ -246,6 +254,18 @@ function toPublicTypeData(
       }
       return base;
     }
+    // COURSE: one lesson of a course. Downloads are resolved by the query
+    // layer into public {label, url, filename} entries and threaded in here —
+    // the raw mediaAssetId is never exposed without its URL.
+    case "COURSE":
+      return {
+        courseSlug: td.courseSlug,
+        courseTitle: td.courseTitle,
+        lessonNumber: td.lessonNumber,
+        keyLearnings: Array.isArray(td.keyLearnings) ? td.keyLearnings : [],
+        downloads: courseDownloads ?? [],
+        faqItems,
+      };
     case "NEWS":
       return { source: td.source, sourceUrl: td.sourceUrl, faqItems };
     case "BLOG":
@@ -290,13 +310,15 @@ function buildJsonLdInput(
  * `avatarUrl` is the resolved public URL for the author's avatar asset. It is
  * resolved by the query layer (the avatar is an FK-less asset reference, so it
  * cannot be joined via Prisma `include`) and threaded in here so this stays a
- * pure, synchronous function.
+ * pure, synchronous function. Likewise `courseDownloads` is a COURSE lesson's
+ * `typeData.downloads` already resolved to public URLs (`resolveCourseDownloads`).
  */
 export function toPublicContent(
   item: ContentItemWithRelations,
   avatarUrl?: string | null,
   downloadUrl?: string | null,
   ogImageUrl?: string | null,
+  courseDownloads?: PublicCourseDownload[] | null,
 ): PublicContent {
   const coverImageUrl = item.coverAsset?.url ?? null;
   const seo = toSeo(item, ogImageUrl, coverImageUrl);
@@ -325,7 +347,7 @@ export function toPublicContent(
     author,
     tags: toTags(item.tags),
     category: toCategory(item.category),
-    typeData: toPublicTypeData(item, downloadUrl),
+    typeData: toPublicTypeData(item, downloadUrl, courseDownloads),
   };
 }
 

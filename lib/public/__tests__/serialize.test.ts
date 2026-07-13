@@ -177,3 +177,61 @@ describe("og share image", () => {
     expect(out.seo.ogImage).toBeUndefined();
   });
 });
+
+// ── COURSE typeData serialization ─────────────────────────────────────────────
+
+describe("toPublicContent COURSE typeData", () => {
+  function courseItem(typeData: Record<string, unknown>): ContentItemWithRelations {
+    return {
+      id: "c2",
+      type: "COURSE",
+      title: "Lesson 2",
+      slug: "storage",
+      excerpt: "excerpt",
+      bodyHtml: "<p>body</p>",
+      body: {},
+      seo: {},
+      typeData,
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-02-01"),
+      updatedAt: new Date("2026-02-02"),
+      authorProfile: null,
+      category: null,
+      coverAsset: null,
+      tags: [],
+    } as unknown as ContentItemWithRelations;
+  }
+
+  const td = {
+    courseSlug: "chemical-safety-101",
+    courseTitle: "Chemical Safety 101",
+    lessonNumber: 2,
+    keyLearnings: ["Store acids apart"],
+    downloads: [
+      { mediaAssetId: "8f14e45f-ea0e-4bfd-9a29-8f6a304c19dd", label: "Worksheet" },
+    ],
+  };
+
+  it("emits resolved downloads and never a raw mediaAssetId", () => {
+    const out = toPublicContent(courseItem(td), null, null, null, [
+      { label: "Worksheet", url: "https://cdn.example/w.docx", filename: "w.docx" },
+    ]);
+    expect(out.typeData.courseSlug).toBe("chemical-safety-101");
+    expect(out.typeData.courseTitle).toBe("Chemical Safety 101");
+    expect(out.typeData.lessonNumber).toBe(2);
+    expect(out.typeData.keyLearnings).toEqual(["Store acids apart"]);
+    expect(out.typeData.downloads).toEqual([
+      { label: "Worksheet", url: "https://cdn.example/w.docx", filename: "w.docx" },
+    ]);
+    // The internal asset reference must never leave the building.
+    expect(JSON.stringify(out.typeData)).not.toContain("mediaAssetId");
+  });
+
+  it("defaults keyLearnings/downloads to empty arrays when unresolved", () => {
+    const out = toPublicContent(
+      courseItem({ courseSlug: "c", courseTitle: "C", lessonNumber: 1 }),
+    );
+    expect(out.typeData.keyLearnings).toEqual([]);
+    expect(out.typeData.downloads).toEqual([]);
+  });
+});

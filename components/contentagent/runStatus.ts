@@ -9,6 +9,7 @@ export function runStatusLabel(status: AgentRunStatus): string {
     case "REVISING": return "Revising";
     case "READY": return "Ready";
     case "FAILED": return "Failed";
+    case "CANCELLED": return "Stopped";
   }
 }
 
@@ -18,6 +19,7 @@ export function runStatusTone(status: AgentRunStatus): BadgeTone {
   switch (status) {
     case "READY": return "published";
     case "FAILED": return "unpublished";
+    case "CANCELLED": return "neutral";
     case "QUEUED": return "neutral";
     default: return "review";
   }

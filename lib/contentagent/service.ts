@@ -7,9 +7,11 @@ import type { SessionUser } from "@/lib/auth/guard";
 import { recordAudit } from "@/lib/audit/service";
 import { createContent } from "@/lib/content/service";
 import { htmlToTiptap } from "@/lib/ai/coerce";
+import { buildCourseSourceReport } from "@/lib/content/courseManager";
 import { channelSpec, isValidPostType, isValidSocialFormat } from "./channels";
+import { isValidSize } from "./sizes";
 import { executeRun, learnFromRun } from "./pipeline";
-import { extractArticleTitle } from "./prompts";
+import { extractArticleMeta } from "./prompts";
 import type { CreateRunInput } from "./schemas";
 import { Prisma } from "@prisma/client";
 import type { AgentRun } from "@prisma/client";
@@ -27,10 +29,28 @@ export async function createRun(
   if (channelSpec(input.channel).requiresSource && !input.sourceReport?.trim()) {
     throw new BadRequestError("This channel requires source material (the report).");
   }
+  if (input.designSize && !isValidSize(input.channel, input.format ?? null, input.designSize)) {
+    throw new BadRequestError(
+      `Size ${input.designSize} isn't supported for this channel/format.`
+    );
+  }
+  if (input.postType === "from-report" && !input.sourceReport?.trim()) {
+    throw new BadRequestError(
+      "A from-report article needs the report — paste it or attach the file."
+    );
+  }
   if (input.format && !isValidSocialFormat(input.channel, input.format)) {
     throw new BadRequestError(
       `Unknown format "${input.format}" for channel ${input.channel}.`
     );
+  }
+
+  // A run born targeting a course gets its source material composed for it:
+  // the course's existing lessons (so the writer keeps continuity) unless the
+  // caller supplied explicit source material.
+  let sourceReport = input.sourceReport?.trim() || null;
+  if (input.targetCourseSlug && !sourceReport) {
+    sourceReport = await buildCourseSourceReport(input.targetCourseSlug);
   }
 
   const run = await prisma.agentRun.create({
@@ -39,8 +59,11 @@ export async function createRun(
       postType: input.postType,
       format: input.format ?? null,
       allowResearch: input.allowResearch ?? true,
+      keywords: input.keywords ?? [],
+      designSize: input.designSize ?? null,
       brief: input.brief.trim(),
-      sourceReport: input.sourceReport?.trim() || null,
+      sourceReport,
+      targetCourseSlug: input.targetCourseSlug ?? null,
       createdById: user.id,
     },
   });
@@ -150,10 +173,69 @@ export async function deactivateLesson(user: SessionUser, id: string): Promise<v
   });
 }
 
-/** Delete a finished (READY/FAILED) run from the library. */
+/** Replace the editable lesson plan on a course-outline run. */
+export async function updateOutlineSyllabus(
+  user: SessionUser,
+  id: string,
+  input: { courseTitle: string; lessons: { title: string; brief: string; assets?: unknown[] }[] }
+): Promise<AgentRun> {
+  const run = await getRun(id);
+  if (run.postType !== "course-outline") {
+    throw new ConflictError("Only course outlines carry a lesson plan.");
+  }
+  const lessons = input.lessons
+    .filter((l) => l.title.trim().length > 0)
+    .slice(0, 10)
+    .map((l, i) => ({
+      n: i + 1,
+      title: l.title.trim().slice(0, 200),
+      brief: (l.brief ?? "").trim().slice(0, 2000),
+      assets: Array.isArray(l.assets) ? l.assets.slice(0, 3) : [],
+    }));
+  const updated = await prisma.agentRun.update({
+    where: { id },
+    data: {
+      outlineSyllabus: {
+        courseTitle: input.courseTitle.trim().slice(0, 200),
+        lessons,
+      } as Prisma.InputJsonValue,
+    },
+  });
+  await recordAudit({
+    actorId: user.id,
+    entityType: "agent_run",
+    entityId: id,
+    action: "syllabus_edited",
+    diff: { lessons: lessons.length },
+  });
+  return updated;
+}
+
+/** Stop a running generation at the next stage boundary. */
+export async function cancelRun(user: SessionUser, id: string): Promise<AgentRun> {
+  const res = await prisma.agentRun.updateMany({
+    where: {
+      id,
+      status: { in: ["QUEUED", "PLANNING", "WRITING", "QA", "REVISING"] },
+    },
+    data: { status: "CANCELLED" },
+  });
+  if (res.count === 0) {
+    throw new ConflictError("This run isn't generating — nothing to stop.");
+  }
+  await recordAudit({
+    actorId: user.id,
+    entityType: "agent_run",
+    entityId: id,
+    action: "cancelled",
+  });
+  return getRun(id);
+}
+
+/** Delete a finished (READY/FAILED/CANCELLED) run from the library. */
 export async function deleteRun(user: SessionUser, id: string): Promise<void> {
   const run = await getRun(id);
-  if (run.status !== "READY" && run.status !== "FAILED") {
+  if (run.status !== "READY" && run.status !== "FAILED" && run.status !== "CANCELLED") {
     throw new ConflictError("Wait for the run to finish before deleting it.");
   }
   await prisma.agentRun.delete({ where: { id } });
@@ -223,7 +305,7 @@ export async function sendToBlog(
     );
   }
 
-  const { title, body } = extractArticleTitle(run.draftText);
+  const { title, metaDescription, body } = extractArticleMeta(run.draftText);
   const { doc } = htmlToTiptap(body);
   const item = await createContent(
     user,
@@ -232,6 +314,16 @@ export async function sendToBlog(
       title: title ?? run.brief.slice(0, 120),
       body: doc as unknown as Record<string, unknown>,
       authorProfileId: user.authorProfileId,
+      ...(title || metaDescription
+        ? {
+            seo: {
+              ...(title ? { metaTitle: title.slice(0, 70) } : {}),
+              ...(metaDescription
+                ? { metaDescription: metaDescription.slice(0, 200) }
+                : {}),
+            },
+          }
+        : {}),
     },
     {
       revisionSource: "AI_GENERATION",

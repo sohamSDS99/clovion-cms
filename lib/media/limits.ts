@@ -21,12 +21,20 @@ export const IMAGE_MIME = new Set([
 ]);
 export const VIDEO_MIME = new Set(["video/mp4", "video/webm"]);
 export const PDF_MIME = new Set(["application/pdf"]);
+/** Office documents (templates/checklists) — stored as kind OTHER. */
+export const DOCUMENT_MIME = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/csv",
+]);
 
 /** Per-kind maximum upload sizes (FR-MEDIA-01). */
-export const SIZE_LIMITS: Record<Exclude<MediaKind, "OTHER">, number> = {
+export const SIZE_LIMITS: Record<MediaKind, number> = {
   IMAGE: 20 * MB,
   VIDEO: 500 * MB,
   PDF: 15 * MB,
+  OTHER: 25 * MB,
 };
 
 /** Map a MIME type to its MediaKind. Unknown types => OTHER (rejected). */
@@ -35,7 +43,7 @@ export function kindForMime(mime: string): MediaKind {
   if (IMAGE_MIME.has(m)) return "IMAGE";
   if (VIDEO_MIME.has(m)) return "VIDEO";
   if (PDF_MIME.has(m)) return "PDF";
-  return "OTHER";
+  return "OTHER"; // allowed only for DOCUMENT_MIME (see validateUpload)
 }
 
 /**
@@ -44,7 +52,7 @@ export function kindForMime(mime: string): MediaKind {
  */
 export function validateUpload(mime: string, sizeBytes: number): MediaKind {
   const kind = kindForMime(mime);
-  if (kind === "OTHER") {
+  if (kind === "OTHER" && !DOCUMENT_MIME.has(mime.toLowerCase())) {
     throw new ValidationError(`Unsupported media type: ${mime}`, {
       mimeType: mime,
     });

@@ -175,6 +175,7 @@ const ALL_CONTENT_TYPES: ContentType[] = [
   "WEBINAR",
   "NEWS",
   "RESOURCE",
+  "COURSE",
   "FAQ",
 ];
 

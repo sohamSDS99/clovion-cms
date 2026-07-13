@@ -25,7 +25,7 @@
 import type { ChatMessage } from "@/lib/ai/openrouter";
 
 export type AiGenerationMode = "full_draft" | "section" | "rewrite" | "outline";
-export type PromptContentType = "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "FAQ";
+export type PromptContentType = "BLOG" | "RESEARCH" | "WEBINAR" | "NEWS" | "RESOURCE" | "COURSE" | "FAQ";
 
 /** Free-form authoring brief supplied by the editor. */
 export interface GenerationBrief {

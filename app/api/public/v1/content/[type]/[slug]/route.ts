@@ -8,6 +8,10 @@
  * noIndex (seo.noIndex): we still serve the content (the site may link to it),
  * but we mark the response no-store so CDNs don't cache it and the site can emit
  * a robots noindex tag from the returned seo block.
+ *
+ * COURSE lessons additionally carry `data.course`: every published sibling
+ * lesson of the same course (typeData.courseSlug) ordered by lessonNumber, plus
+ * prev/next pointers relative to the requested lesson.
  */
 
 import { z } from "zod";
@@ -17,14 +21,17 @@ import {
   resolveAvatarUrl,
   resolveResourceDownloadUrl,
   resolveOgImageUrl,
+  resolveCourseDownloads,
+  listPublishedCourseLessons,
 } from "@/lib/public/query";
+import { computeCourseNav, type CourseNav } from "@/lib/public/courseNav";
 import { toPublicContent } from "@/lib/public/serialize";
 import { withCache } from "@/lib/public/cache";
 
 export const runtime = "nodejs";
 
 const paramsSchema = z.object({
-  type: z.enum(["BLOG", "RESEARCH", "WEBINAR", "NEWS", "RESOURCE", "FAQ"]),
+  type: z.enum(["BLOG", "RESEARCH", "WEBINAR", "NEWS", "RESOURCE", "COURSE", "FAQ"]),
   slug: z.string().min(1).max(300),
 });
 
@@ -46,9 +53,24 @@ export const GET = withRoute(
     const avatarUrl = await resolveAvatarUrl(item.authorProfile?.avatarAssetId);
     const downloadUrl = await resolveResourceDownloadUrl(item);
     const ogImageUrl = await resolveOgImageUrl(item);
-    const payload = toPublicContent(item, avatarUrl, downloadUrl, ogImageUrl);
+    const courseDownloads = await resolveCourseDownloads(item);
+    const payload = toPublicContent(item, avatarUrl, downloadUrl, ogImageUrl, courseDownloads);
 
-    const res = json({ data: payload });
+    // COURSE navigation: sibling lessons share typeData.courseSlug; the pure
+    // helper orders them and locates prev/next around this lesson.
+    let course: ({ courseSlug: string; courseTitle: string | null } & CourseNav) | null =
+      null;
+    const td = (item.typeData ?? {}) as Record<string, unknown>;
+    if (item.type === "COURSE" && typeof td.courseSlug === "string") {
+      const lessons = await listPublishedCourseLessons(td.courseSlug);
+      course = {
+        courseSlug: td.courseSlug,
+        courseTitle: typeof td.courseTitle === "string" ? td.courseTitle : null,
+        ...computeCourseNav(lessons, payload.slug),
+      };
+    }
+
+    const res = json({ data: course ? { ...payload, course } : payload });
     // Respect noIndex: do not let the edge cache pages flagged noindex.
     return withCache(res, { noStore: payload.seo.noIndex });
   },

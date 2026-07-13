@@ -17,7 +17,8 @@ interface ListResponse {
 /**
  * Reusable asset picker (FR-EDITOR-02/04, FR-MEDIA-03). Lets the user pick an
  * existing asset or upload a new one inline, then returns the chosen asset.
- * `kind` constrains the library view (e.g. IMAGE for covers, PDF for resources).
+ * `kind` constrains the library view (e.g. IMAGE for covers, PDF for resources);
+ * pass "ALL" to browse every kind (e.g. COURSE lesson downloads).
  */
 export function MediaPicker({
   open,
@@ -29,7 +30,7 @@ export function MediaPicker({
   open: boolean;
   onClose: () => void;
   onPick: (asset: MediaAsset) => void;
-  kind?: MediaKind;
+  kind?: MediaKind | "ALL";
   title?: string;
 }) {
   const [assets, setAssets] = useState<MediaAsset[] | null>(null);
@@ -42,7 +43,10 @@ export function MediaPicker({
     setAssets(null);
     setError(null);
     api
-      .get<ListResponse>("/api/media", { kind, q: q || undefined })
+      .get<ListResponse>("/api/media", {
+        kind: kind === "ALL" ? undefined : kind,
+        q: q || undefined,
+      })
       .then((r) => setAssets(r.items))
       .catch((e) => setError(errorMessage(e)));
   }
@@ -83,15 +87,7 @@ export function MediaPicker({
           ref={fileRef}
           type="file"
           hidden
-          accept={
-            kind === "IMAGE"
-              ? "image/*"
-              : kind === "PDF"
-                ? "application/pdf"
-                : kind === "VIDEO"
-                  ? "video/mp4,video/webm"
-                  : undefined
-          }
+          accept={kind === "IMAGE" ? "image/*" : kind === "PDF" ? "application/pdf" : undefined}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) upload(f);

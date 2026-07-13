@@ -276,7 +276,11 @@ export function ContentEditor({
     try {
       await api.delete(`/api/content/${contentId}`);
       toast.success("Deleted.");
-      router.push("/content");
+      const courseSlug =
+        item?.type === "COURSE"
+          ? ((item.typeData as { courseSlug?: string } | null)?.courseSlug ?? null)
+          : null;
+      router.push(courseSlug ? `/course-manager/${courseSlug}` : "/content");
     } catch (e) {
       toast.error(errorMessage(e));
     }

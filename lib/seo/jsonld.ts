@@ -8,6 +8,7 @@
  * Mapping by ContentType:
  *   BLOG / NEWS  -> BlogPosting (BLOG) / NewsArticle (NEWS), an Article subtype
  *   RESEARCH     -> Article (a plain long-form article, like BLOG)
+ *   COURSE       -> Article (a course lesson; plain Article is fine for v1)
  *   WEBINAR      -> Event (startDate/endDate from typeData, url=registrationUrl)
  *   FAQ          -> FAQPage (mainEntity built from typeData.faqItems Q&A)
  *   RESOURCE     -> Article; when an ungated download exists, the download URL is
@@ -186,6 +187,8 @@ export function generateJsonLd(item: JsonLdInput): JsonLd {
     case "BLOG":
       return articleJsonLd(item, "BlogPosting");
     case "RESEARCH":
+      return articleJsonLd(item, "Article");
+    case "COURSE":
       return articleJsonLd(item, "Article");
     case "NEWS":
       return articleJsonLd(item, "NewsArticle");

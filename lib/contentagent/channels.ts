@@ -24,7 +24,16 @@ export interface ChannelSpec {
   id: AgentChannel;
   label: string;
   format: OutputFormat;
-  voiceKey: "personal" | "company" | "meta" | "article" | "leadmagnet";
+  voiceKey:
+    | "personal"
+    | "company"
+    | "meta"
+    | "facebook"
+    | "instagram"
+    | "article"
+    | "leadmagnet";
+  /** Legacy channels stay resolvable (old runs render) but are hidden in the UI. */
+  legacy?: boolean;
   /** Requires sourceReport in the brief step. */
   requiresSource: boolean;
   /** ContentItem type used when filing into the CMS (article formats only). */
@@ -67,13 +76,42 @@ export const CHANNELS: ChannelSpec[] = [
   },
   {
     id: "META_SOCIAL",
-    label: "Facebook / Instagram",
+    label: "Facebook / Instagram (legacy)",
     format: "caption",
     voiceKey: "meta",
     requiresSource: false,
+    legacy: true,
     socialFormats: SOCIAL_FORMATS,
     postTypes: [
       { id: "educational", label: "Educational / tip" },
+      { id: "research-insight", label: "Research insight" },
+      { id: "product-update", label: "Product update" },
+      { id: "brand-story", label: "Brand story" },
+    ],
+  },
+  {
+    id: "FACEBOOK",
+    label: "Facebook",
+    format: "caption",
+    voiceKey: "facebook",
+    requiresSource: false,
+    socialFormats: SOCIAL_FORMATS,
+    postTypes: [
+      { id: "educational", label: "Educational" },
+      { id: "research-insight", label: "Research insight" },
+      { id: "product-update", label: "Product update" },
+      { id: "brand-story", label: "Brand story" },
+    ],
+  },
+  {
+    id: "INSTAGRAM",
+    label: "Instagram",
+    format: "caption",
+    voiceKey: "instagram",
+    requiresSource: false,
+    socialFormats: SOCIAL_FORMATS,
+    postTypes: [
+      { id: "educational", label: "Educational" },
       { id: "research-insight", label: "Research insight" },
       { id: "product-update", label: "Product update" },
       { id: "brand-story", label: "Brand story" },
@@ -91,14 +129,18 @@ export const CHANNELS: ChannelSpec[] = [
       { id: "research-analysis", label: "Research analysis" },
       { id: "opinion", label: "Opinion / position piece" },
       { id: "comparison", label: "Comparison / evaluation" },
+      { id: "from-report", label: "From report (attach the report)" },
+      { id: "course-outline", label: "Course outline (syllabus)" },
+      { id: "course-lesson", label: "Course lesson" },
     ],
   },
   {
     id: "REPORT_ARTICLE",
-    label: "Article from report",
+    label: "Article from report (legacy)",
     format: "article",
     voiceKey: "article",
     requiresSource: true,
+    legacy: true,
     cmsType: "BLOG",
     postTypes: [
       { id: "report-summary", label: "Report summary article" },

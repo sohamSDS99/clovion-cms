@@ -16,6 +16,7 @@ const run = {
   postType: "research-insight",
   format: null,
   allowResearch: true,
+  keywords: [],
   brief: "Post about the 67% constraint finding.",
   sourceReport: null,
   plan: null,
@@ -63,7 +64,7 @@ describe("visual formats", () => {
     const carRun = { ...run, channel: "META_SOCIAL", format: "carousel" } as AgentRun;
     const msgs = writerMessages(carRun, {});
     expect(msgs[0].content).toContain("SLIDES");
-    expect(msgs[0].content).toContain("one idea per slide");
+    expect(msgs[0].content).toContain("ONE idea");
   });
   it("plain caption rule applies for static/no format", () => {
     const msgs = writerMessages(run, {});
@@ -207,5 +208,184 @@ describe("research contract", () => {
   it("writer must attribute research findings", () => {
     const msgs = writerMessages(run, {});
     expect(msgs[0].content).toContain("attribute");
+  });
+});
+
+
+describe("course post types", () => {
+  it("course-lesson gets the lesson skeleton + continuity rules", () => {
+    const lessonRun = { ...run, channel: "BLOG_ARTICLE", postType: "course-lesson" } as AgentRun;
+    const msgs = writerMessages(lessonRun, {});
+    expect(msgs[0].content).toContain("Key learnings");
+    expect(msgs[0].content).toContain("never re-teach");
+    expect(msgs[0].content).toContain("bridging to the next lesson");
+  });
+  it("course-outline demands a full syllabus structure", () => {
+    const outlineRun = { ...run, channel: "BLOG_ARTICLE", postType: "course-outline" } as AgentRun;
+    const msgs = writerMessages(outlineRun, {});
+    expect(msgs[0].content).toContain("6–8 lessons");
+    expect(msgs[0].content).toContain("Assets to produce");
+  });
+  it("normal articles are unaffected", () => {
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "educational-guide" } as AgentRun;
+    const msgs = writerMessages(artRun, {});
+    expect(msgs[0].content).not.toContain("Key learnings");
+  });
+});
+
+
+describe("SEO keywords", () => {
+  it("writer gets primary/secondary rules + meta description contract", () => {
+    const kwRun = {
+      ...run,
+      channel: "BLOG_ARTICLE",
+      postType: "educational-guide",
+      keywords: ["ai visibility tracking", "geo optimization"],
+    } as AgentRun;
+    const msgs = writerMessages(kwRun, {});
+    expect(msgs[1].content).toContain('Primary: "ai visibility tracking"');
+    expect(msgs[1].content).toContain('"geo optimization"');
+    expect(msgs[1].content).toContain("NEVER stuff");
+    expect(msgs[1].content).toContain("metaDescription");
+  });
+  it("no keyword block when none set", () => {
+    const msgs = writerMessages(run, {});
+    expect(msgs[1].content).not.toContain("SEO KEYWORDS");
+  });
+  it("extractArticleMeta pulls title + meta description", async () => {
+    const { extractArticleMeta } = await import("@/lib/contentagent/prompts");
+    const raw = "<!--title: My Post -->\n<!--metaDescription: The plain answer, with the keyword. -->\n<p>Body</p>";
+    const meta = extractArticleMeta(raw);
+    expect(meta.title).toBe("My Post");
+    expect(meta.metaDescription).toBe("The plain answer, with the keyword.");
+    expect(meta.body.trim()).toBe("<p>Body</p>");
+  });
+});
+
+
+describe("negative parallelism guard", () => {
+  it("writer carries the hard limit in every channel", () => {
+    const msgs = writerMessages(run, {});
+    expect(msgs[0].content).toContain("NEGATIVE PARALLELISM");
+    expect(msgs[0].content).toContain("NEGATIVE PARALLELISM — HARD LIMIT");
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "educational-guide" } as AgentRun;
+    expect(writerMessages(artRun, {})[0].content).toContain("NEGATIVE PARALLELISM");
+  });
+  it("QA counts instances and fails on more than one", () => {
+    const msgs = qaMessages(run, "draft");
+    expect(msgs[0].content).toContain("MORE THAN ONE in the piece = required fix");
+  });
+});
+
+
+describe("customer-first framing", () => {
+  it("every channel's writer carries the framing rule with both examples", () => {
+    const msgs = writerMessages(run, {});
+    expect(msgs[0].content).toContain("CUSTOMER-FIRST FRAMING");
+    expect(msgs[0].content).toContain("stake → mechanism → evidence");
+    expect(msgs[0].content).toContain("Your buyers don't all use the same AI");
+    expect(msgs[0].content).toContain("from 90% to 28%");
+  });
+  it("orchestrator plans keyPoints as customer problems", () => {
+    const msgs = orchestratorMessages(run);
+    expect(msgs[0].content).toContain("READER'S business problem");
+  });
+  it("QA enforces the so-what test", () => {
+    const msgs = qaMessages(run, "draft");
+    expect(msgs[0].content).toContain("CUSTOMER-FIRST FRAMING");
+    expect(msgs[0].content).toContain('"so what?"');
+  });
+});
+
+
+describe("carousel discipline", () => {
+  it("carousel format enforces budgets, one number per slide, no labels, arc", () => {
+    const carRun = { ...run, channel: "LINKEDIN_COMPANY", format: "carousel" } as AgentRun;
+    const msgs = writerMessages(carRun, {});
+    expect(msgs[0].content).toContain("WORD BUDGETS");
+    expect(msgs[0].content).toContain("heading \u22646 words + body \u226425 words");
+    expect(msgs[0].content).toContain("NO LABELS");
+    expect(msgs[0].content).toContain("AT MOST ONE number per slide");
+    expect(msgs[0].content).toContain("NEVER repeat a statistic");
+    expect(msgs[0].content).toContain("THE ARC");
+  });
+  it("QA fails carousels that break the slide rules incl. word budgets", () => {
+    const msgs = qaMessages(run, "draft");
+    expect(msgs[0].content).toContain("CAROUSELS/SLIDES specifically");
+    expect(msgs[0].content).toContain("reordered without breaking the flow");
+    expect(msgs[0].content).toContain("busts its word budget");
+  });
+});
+
+
+describe("platform-aware design prompts", () => {
+  it("LinkedIn carousels target 4:5 PDF document pages", async () => {
+    const { buildDesignPrompt } = await import("@/lib/contentagent/designPrompt");
+    const p = buildDesignPrompt({ ...run, channel: "LINKEDIN_COMPANY", format: "carousel", specText: "SLIDE 1: X" } as never);
+    expect(p).toContain("1080×1350");
+    expect(p).toContain("multi-page PDF");
+  });
+  it("Instagram gets the 3:4 grid safe zone on singles and carousels", async () => {
+    const { buildDesignPrompt } = await import("@/lib/contentagent/designPrompt");
+    const single = buildDesignPrompt({ ...run, channel: "INSTAGRAM", format: "infographic", specText: "TITLE: X" } as never);
+    const car = buildDesignPrompt({ ...run, channel: "INSTAGRAM", format: "carousel", specText: "SLIDE 1: X" } as never);
+    expect(single).toContain("3:4");
+    expect(car).toContain("identical on every slide");
+    expect(car).toContain("3:4 safe zone");
+  });
+  it("Facebook carousels are 1:1 squares", async () => {
+    const { buildDesignPrompt } = await import("@/lib/contentagent/designPrompt");
+    const p = buildDesignPrompt({ ...run, channel: "FACEBOOK", format: "carousel", specText: "SLIDE 1: X" } as never);
+    expect(p).toContain("1080×1080");
+  });
+});
+
+
+describe("size selection", () => {
+  it("size options are platform-correct", async () => {
+    const { sizeOptionsFor, isValidSize } = await import("@/lib/contentagent/sizes");
+    expect(sizeOptionsFor("LINKEDIN_COMPANY", "infographic")!.map((s) => s.id)).toEqual([
+      "1080x1350", "1080x1080", "1200x627",
+    ]);
+    expect(sizeOptionsFor("INSTAGRAM", "carousel")!.map((s) => s.id)).toEqual([
+      "1080x1350", "1080x1080",
+    ]);
+    expect(sizeOptionsFor("FACEBOOK", "carousel")![0].id).toBe("1080x1080");
+    expect(sizeOptionsFor("LINKEDIN_COMPANY", "static")).toBeNull();
+    expect(isValidSize("INSTAGRAM", "carousel", "1200x627")).toBe(false);
+  });
+  it("orchestrator is asked to recommend only when auto", () => {
+    const autoRun = { ...run, channel: "LINKEDIN_COMPANY", format: "infographic", designSize: null } as AgentRun;
+    expect(orchestratorMessages(autoRun)[0].content).toContain("recommendedSize");
+    const fixedRun = { ...autoRun, designSize: "1080x1080" } as AgentRun;
+    expect(orchestratorMessages(fixedRun)[0].content).not.toContain("ARTBOARD SIZE:");
+  });
+  it("design prompt uses the chosen size", async () => {
+    const { buildDesignPrompt } = await import("@/lib/contentagent/designPrompt");
+    const p = buildDesignPrompt({ ...run, channel: "LINKEDIN_COMPANY", format: "infographic", designSize: "1080x1080", specText: "TITLE: X" } as never);
+    expect(p).toContain("1080×1080");
+    expect(p).not.toContain("1080×1350");
+  });
+});
+
+
+describe("title rules", () => {
+  it("articles carry the buyer-intent title rules with examples", () => {
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "educational-guide" } as AgentRun;
+    const msgs = writerMessages(artRun, {});
+    expect(msgs[0].content).toContain("TITLES (the customer-first rule");
+    expect(msgs[0].content).toContain("which number to trust");
+    expect(msgs[0].content).toContain("(+ template)");
+  });
+  it("course outlines demand learner-question lesson titles", () => {
+    const outRun = { ...run, channel: "BLOG_ARTICLE", postType: "course-outline" } as AgentRun;
+    const msgs = writerMessages(outRun, {});
+    expect(msgs[0].content).toContain("THE LEARNER would ask");
+    expect(msgs[0].content).toContain("Never name the course after our method");
+  });
+  it("QA rejects titles the buyer wouldn't type or feel", () => {
+    const msgs = qaMessages(run, "draft");
+    expect(msgs[0].content).toContain("TITLES (articles, lessons, courses)");
+    expect(msgs[0].content).toContain("required fix with a rewrite suggestion");
   });
 });
