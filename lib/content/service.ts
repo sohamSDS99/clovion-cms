@@ -99,7 +99,13 @@ function toPublishCandidate(item: ContentItem): PublishCandidate {
  */
 export async function createContent(
   user: SessionUser,
-  input: CreateContentInput
+  input: CreateContentInput,
+  opts?: {
+    /** Source recorded on the first revision (default MANUAL). */
+    revisionSource?: "MANUAL" | "AI_GENERATION";
+    /** Optional note stored on the first revision. */
+    revisionNote?: string;
+  }
 ): Promise<ContentItem> {
   // Byline defaults to the explicit author profile, else the acting user's own.
   const authorProfileId = input.authorProfileId ?? user.authorProfileId;
@@ -153,7 +159,8 @@ export async function createContent(
         body,
         seo,
         typeData,
-        source: "MANUAL",
+        source: opts?.revisionSource ?? "MANUAL",
+        revisionNote: opts?.revisionNote,
         createdById: user.id,
       },
     });

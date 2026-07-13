@@ -26,6 +26,7 @@ import {
 } from "./queue";
 import { processDueJobs, processJob } from "./process";
 import { processWebinarFlip } from "./webinar";
+import { processStaleAgentRuns } from "@/lib/contentagent/pipeline";
 
 /** Processor invoked by BullMQ for each queued job. */
 async function handle(job: Job): Promise<void> {
@@ -54,6 +55,15 @@ async function handle(job: Job): Promise<void> {
   const flipped = flips.filter((f) => f.flipped).length;
   if (flipped > 0) {
     console.log(`[webinar-auto] flipped ${flipped} webinar(s) to recorded`);
+  }
+
+  // Content Agent safety net: pick up QUEUED runs whose in-process trigger
+  // was lost (server restart). Self-contained + never throws.
+  try {
+    const picked = await processStaleAgentRuns();
+    if (picked > 0) console.log(`[content-agent] recovered ${picked} stale run(s)`);
+  } catch (err) {
+    console.error("[content-agent] stale-run sweep failed:", err);
   }
 }
 

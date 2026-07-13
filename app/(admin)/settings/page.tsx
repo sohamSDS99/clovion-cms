@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SettingsTabs, type SettingsTab } from "@/components/settings/SettingsTabs";
 
-const TAB_VALUES: SettingsTab[] = ["profile", "writing", "users"];
+const TAB_VALUES: SettingsTab[] = ["profile", "writing", "ai", "users"];
 
 /**
  * Settings: a single page with three role-gated tabs — Profile Settings,

@@ -25,9 +25,14 @@ export interface MaskedConfig {
   embeddingModel: string | null;
   maxTokens: number;
   temperature: number;
+  agentModels: Record<string, string>;
   monthlyBudgetUsd: string | null;
   hasKey: boolean;
   openrouterApiKeyMasked: string | null;
+  hasAnthropicKey: boolean;
+  anthropicApiKeyMasked: string | null;
+  hasOpenaiKey: boolean;
+  openaiApiKeyMasked: string | null;
   createdAt: Date;
   updatedAt: Date;
   updatedById: string | null;
@@ -36,6 +41,15 @@ export interface MaskedConfig {
 /** Loads the singleton row, or null if it has never been configured. */
 async function loadRow(): Promise<ConfigRow | null> {
   return prisma.aIProviderConfig.findFirst();
+}
+
+function maskEncrypted(encrypted: string | null): string | null {
+  if (!encrypted) return null;
+  try {
+    return maskSecret(decryptSecret(encrypted));
+  } catch {
+    return "…";
+  }
 }
 
 /** Strips the encrypted key and returns a client-safe masked view. */
@@ -56,9 +70,14 @@ function toMasked(row: ConfigRow): MaskedConfig {
     embeddingModel: row.embeddingModel,
     maxTokens: row.maxTokens,
     temperature: row.temperature,
+    agentModels: (row.agentModels ?? {}) as Record<string, string>,
     monthlyBudgetUsd: row.monthlyBudgetUsd ? row.monthlyBudgetUsd.toString() : null,
     hasKey,
     openrouterApiKeyMasked: masked,
+    hasAnthropicKey: Boolean(row.anthropicApiKeyEncrypted),
+    anthropicApiKeyMasked: maskEncrypted(row.anthropicApiKeyEncrypted),
+    hasOpenaiKey: Boolean(row.openaiApiKeyEncrypted),
+    openaiApiKeyMasked: maskEncrypted(row.openaiApiKeyEncrypted),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     updatedById: row.updatedById,
@@ -76,6 +95,11 @@ export async function getConfig(): Promise<MaskedConfig> {
       embeddingModel: null,
       maxTokens: 4000,
       temperature: 0.7,
+      agentModels: {},
+      hasAnthropicKey: false,
+      anthropicApiKeyMasked: null,
+      hasOpenaiKey: false,
+      openaiApiKeyMasked: null,
       monthlyBudgetUsd: null,
       hasKey: false,
       openrouterApiKeyMasked: null,
@@ -95,6 +119,28 @@ export async function getDecryptedKey(): Promise<string | null> {
   const row = await loadRow();
   if (!row?.openrouterApiKeyEncrypted) return null;
   return decryptSecret(row.openrouterApiKeyEncrypted);
+}
+
+/** Server-only: decrypted Anthropic key for direct API calls. */
+export async function getDecryptedAnthropicKey(): Promise<string | null> {
+  const row = await loadRow();
+  if (!row?.anthropicApiKeyEncrypted) return null;
+  try {
+    return decryptSecret(row.anthropicApiKeyEncrypted);
+  } catch {
+    return null;
+  }
+}
+
+/** Server-only: decrypted OpenAI key for direct API calls. */
+export async function getDecryptedOpenaiKey(): Promise<string | null> {
+  const row = await loadRow();
+  if (!row?.openaiApiKeyEncrypted) return null;
+  try {
+    return decryptSecret(row.openaiApiKeyEncrypted);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -117,6 +163,8 @@ export async function updateConfig(
   if (input.defaultModel !== undefined) data.defaultModel = input.defaultModel;
   if (input.embeddingModel !== undefined) data.embeddingModel = input.embeddingModel;
   if (input.maxTokens !== undefined) data.maxTokens = input.maxTokens;
+  if (input.agentModels !== undefined)
+    data.agentModels = input.agentModels as object;
   if (input.temperature !== undefined) data.temperature = input.temperature;
   if (input.monthlyBudgetUsd !== undefined) {
     data.monthlyBudgetUsd =
@@ -126,6 +174,12 @@ export async function updateConfig(
   }
   if (input.apiKey) {
     data.openrouterApiKeyEncrypted = encryptSecret(input.apiKey);
+  }
+  if (input.anthropicApiKey) {
+    data.anthropicApiKeyEncrypted = encryptSecret(input.anthropicApiKey);
+  }
+  if (input.openaiApiKey) {
+    data.openaiApiKeyEncrypted = encryptSecret(input.openaiApiKey);
   }
 
   let row: ConfigRow;

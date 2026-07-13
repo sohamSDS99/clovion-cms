@@ -11,14 +11,25 @@ import { z } from "zod";
  */
 export const updateConfigSchema = z
   .object({
-    // Provide to (re)set the OpenRouter key; omit to leave the stored key as-is.
+    // Provide to (re)set a key; omit to leave the stored key as-is.
     apiKey: z.string().trim().min(1).optional(),
+    anthropicApiKey: z.string().trim().min(1).optional(),
+    openaiApiKey: z.string().trim().min(1).optional(),
     defaultModel: z.string().trim().min(1).nullish(),
     embeddingModel: z.string().trim().min(1).nullish(),
     maxTokens: z.number().int().positive().max(200_000).optional(),
     temperature: z.number().min(0).max(2).optional(),
     // Monetary budget in USD; null clears the cap. Stored as Prisma Decimal.
     monthlyBudgetUsd: z.number().nonnegative().max(1_000_000).nullish(),
+    // Per-role model overrides for the Content Agent pipeline.
+    agentModels: z
+      .object({
+        orchestrator: z.string().trim().min(1).optional(),
+        writer: z.string().trim().min(1).optional(),
+        qa: z.string().trim().min(1).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
