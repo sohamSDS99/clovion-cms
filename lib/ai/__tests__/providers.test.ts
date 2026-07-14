@@ -50,3 +50,16 @@ describe("chatComplete key gating", () => {
     await expect(chatComplete({}, args)).rejects.toBeInstanceOf(ProviderError);
   });
 });
+
+
+describe("filterChatModels", () => {
+  it("keeps chat models, drops non-chat ids, dedupes and sorts", async () => {
+    const { filterChatModels } = await import("@/lib/ai/providers");
+    expect(
+      filterChatModels("openai", ["gpt-5.2", "text-embedding-3-small", "whisper-1", "o3-mini", "gpt-5.2", "dall-e-3"])
+    ).toEqual(["gpt-5.2", "o3-mini"]);
+    expect(filterChatModels("anthropic", ["claude-opus-4-6", "claude-sonnet-5", "not-a-model"])).toEqual([
+      "claude-opus-4-6", "claude-sonnet-5",
+    ]);
+  });
+});

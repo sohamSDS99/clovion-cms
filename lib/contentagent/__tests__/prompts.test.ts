@@ -385,7 +385,34 @@ describe("title rules", () => {
   });
   it("QA rejects titles the buyer wouldn't type or feel", () => {
     const msgs = qaMessages(run, "draft");
-    expect(msgs[0].content).toContain("TITLES (articles, lessons, courses)");
+    expect(msgs[0].content).toContain("TITLES");
     expect(msgs[0].content).toContain("required fix with a rewrite suggestion");
+  });
+});
+
+
+describe("weighted article QA rubric", () => {
+  it("articles get the weighted rubric with publish-or-kill", () => {
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "educational-guide" } as AgentRun;
+    const msgs = qaMessages(artRun, "draft");
+    expect(msgs[0].content).toContain("WEIGHTED RUBRIC");
+    expect(msgs[0].content).toContain("informationGain (20%)");
+    expect(msgs[0].content).toContain("PUBLISH-OR-KILL");
+    expect(msgs[0].content).toContain("weightedScore \u2265 75");
+    expect(msgs[0].content).toContain("uniqueness");
+  });
+  it("captions keep the 30-second-checklist contract", () => {
+    const msgs = qaMessages(run, "draft");
+    expect(msgs[0].content).toContain("soundsHuman");
+    expect(msgs[0].content).not.toContain("WEIGHTED RUBRIC");
+  });
+  it("hard checks survive on both paths", () => {
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "opinion" } as AgentRun;
+    for (const r of [run, artRun]) {
+      const c = qaMessages(r as AgentRun, "draft")[0].content;
+      expect(c).toContain("FABRICATION");
+      expect(c).toContain("NEGATIVE PARALLELISM");
+      expect(c).toContain("CUSTOMER-FIRST FRAMING");
+    }
   });
 });

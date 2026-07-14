@@ -35,8 +35,13 @@ export function AiSettings() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [directModels, setDirectModels] = useState<{ anthropic: string[]; openai: string[] } | null>(null);
 
   useEffect(() => {
+    api
+      .get<{ anthropic: string[]; openai: string[] }>("/api/settings/ai/direct-models")
+      .then(setDirectModels)
+      .catch(() => {});
     api
       .get<AiConfig>("/api/settings/ai")
       .then((c) => {
@@ -156,23 +161,26 @@ export function AiSettings() {
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <Input
+                <RoleModelField
                   label="Orchestrator model"
                   placeholder="claude-fable-5"
                   value={orchestratorModel}
-                  onChange={(e) => setOrchestratorModel(e.target.value)}
+                  onChange={setOrchestratorModel}
+                  models={directModels}
                 />
-                <Input
+                <RoleModelField
                   label="Writer model"
                   placeholder="claude-sonnet-5"
                   value={writerModel}
-                  onChange={(e) => setWriterModel(e.target.value)}
+                  onChange={setWriterModel}
+                  models={directModels}
                 />
-                <Input
+                <RoleModelField
                   label="QA model"
                   placeholder="gpt-5.2"
                   value={qaModel}
-                  onChange={(e) => setQaModel(e.target.value)}
+                  onChange={setQaModel}
+                  models={directModels}
                 />
               </div>
               <p className="text-xs text-ink-faint">
@@ -303,6 +311,61 @@ function ModelField({
           {id}
         </option>
       ))}
+    </Select>
+  );
+}
+
+
+/** Role model selector: live provider model lists, grouped; falls back to a
+ * free-text input while lists load or when no keys are configured. */
+function RoleModelField({
+  label,
+  placeholder,
+  value,
+  onChange,
+  models,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  models: { anthropic: string[]; openai: string[] } | null;
+}) {
+  const total = (models?.anthropic.length ?? 0) + (models?.openai.length ?? 0);
+  if (!models || total === 0) {
+    return (
+      <Input
+        label={label}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+  const known =
+    value === "" || models.anthropic.includes(value) || models.openai.includes(value);
+  return (
+    <Select label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Default ({placeholder})</option>
+      {!known ? <option value={value}>{value} (current)</option> : null}
+      {models.anthropic.length > 0 ? (
+        <optgroup label="Anthropic">
+          {models.anthropic.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </optgroup>
+      ) : null}
+      {models.openai.length > 0 ? (
+        <optgroup label="OpenAI">
+          {models.openai.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </optgroup>
+      ) : null}
     </Select>
   );
 }

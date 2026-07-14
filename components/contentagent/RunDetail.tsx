@@ -29,7 +29,11 @@ import {
 
 interface QaReport {
   pass: boolean;
+  weightedScore?: number;
   scores?: Record<string, number>;
+  checks?: Record<string, { pass: boolean; note?: string }>;
+  publishOrKill?: "publish" | "kill";
+  publishOrKillReason?: string;
   requiredFixes?: string[];
   notes?: string;
 }
@@ -41,6 +45,20 @@ const SCORE_LABELS: Record<string, string> = {
   numbersBacked: "Numbers where possible",
   clarity: "Read once, understood",
   soundsHuman: "Sounds like a person",
+  searchIntent: "Search intent satisfaction (20%)",
+  informationGain: "Information gain (20%)",
+  originalInsight: "Original insight (15%)",
+  accuracyEvidence: "Accuracy & evidence (15%)",
+  depthCompleteness: "Depth & completeness (10%)",
+  readability: "Readability (10%)",
+  seoQuality: "SEO quality (5%)",
+  brandAuthority: "Brand authority (5%)",
+};
+
+const CHECK_LABELS: Record<string, string> = {
+  expertise: "Expertise (E-E-A-T)",
+  uniqueness: "Uniqueness",
+  actionability: "Actionability",
 };
 
 export function RunDetail({ id }: { id: string }) {
@@ -997,12 +1015,52 @@ export function RunDetail({ id }: { id: string }) {
                   }
                 />
                 <div className="flex flex-col gap-3 p-4 pt-0">
+                  {typeof qa.weightedScore === "number" ? (
+                    <div className="flex items-center justify-between border-b border-line pb-3">
+                      <span className="text-sm text-ink-mute">Weighted score</span>
+                      <span className="text-lg font-semibold tabular-nums text-ink">
+                        {Math.round(qa.weightedScore)}/100
+                      </span>
+                    </div>
+                  ) : null}
+                  {qa.publishOrKill ? (
+                    <div className="flex items-start justify-between gap-2 border-b border-line pb-3 text-sm">
+                      <span className="text-ink-mute">Publish or kill</span>
+                      <span className="text-right">
+                        <Badge tone={qa.publishOrKill === "publish" ? "published" : "unpublished"}>
+                          {qa.publishOrKill === "publish" ? "Publish" : "Kill"}
+                        </Badge>
+                        {qa.publishOrKillReason ? (
+                          <span className="mt-1 block max-w-[220px] text-xs text-ink-soft">
+                            {qa.publishOrKillReason}
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ) : null}
                   {qa.scores ? (
                     <ul className="flex flex-col gap-1.5">
                       {Object.entries(qa.scores).map(([key, score]) => (
                         <li key={key} className="flex items-center justify-between text-sm">
                           <span className="text-ink-mute">{SCORE_LABELS[key] ?? key}</span>
                           <span className="tabular-nums text-ink">{score}/5</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {qa.checks ? (
+                    <ul className="flex flex-col gap-1.5 border-t border-line pt-3">
+                      {Object.entries(qa.checks).map(([key, c]) => (
+                        <li key={key} className="flex items-start justify-between gap-2 text-sm">
+                          <span className="text-ink-mute">{CHECK_LABELS[key] ?? key}</span>
+                          <span className="text-right">
+                            <span className={c.pass ? "text-ink" : "text-ink font-medium"}>
+                              {c.pass ? "✓" : "✗"}
+                            </span>
+                            {c.note ? (
+                              <span className="ml-1 text-xs text-ink-soft">{c.note}</span>
+                            ) : null}
+                          </span>
                         </li>
                       ))}
                     </ul>

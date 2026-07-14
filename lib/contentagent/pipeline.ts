@@ -263,11 +263,12 @@ export async function executeRun(runId: string): Promise<void> {
       await setStatus(runId, "QA", { draftText: draft });
       const findings = (plan as { researchFindings?: unknown[] } | null)
         ?.researchFindings;
-      const qaRes = await callRole(
+      const qaRes = await callRoleWithSearch(
         keys,
         models.qa,
         qaMessages(run, draft, findings),
-        8000
+        8000,
+        spec.format === "article" && run.allowResearch ? { maxUses: 3 } : undefined
       );
       usages.push(qaRes.usage);
       await assertNotCancelled(runId);
