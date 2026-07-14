@@ -211,6 +211,38 @@ export async function updateOutlineSyllabus(
   return updated;
 }
 
+/** Re-run a finished/failed run fresh (new draft + QA), no feedback needed. */
+export async function retryRun(user: SessionUser, id: string): Promise<AgentRun> {
+  const run = await getRun(id);
+  if (!["READY", "FAILED", "CANCELLED"].includes(run.status)) {
+    throw new ConflictError("Let the current attempt finish before retrying.");
+  }
+  const updated = await prisma.agentRun.update({
+    where: { id },
+    data: {
+      status: "QUEUED",
+      // Fresh attempt: clear the prior plan/draft so the orchestrator + writer
+      // start over (feedback history is preserved but not treated as a revision
+      // round unless the user explicitly gave feedback).
+      plan: Prisma.DbNull,
+      draftText: null,
+      specText: null,
+      captionText: null,
+      qaReport: Prisma.DbNull,
+      error: Prisma.DbNull,
+      feedback: [] as Prisma.InputJsonValue,
+    },
+  });
+  await recordAudit({
+    actorId: user.id,
+    entityType: "agent_run",
+    entityId: id,
+    action: "retried",
+  });
+  void executeRun(id);
+  return updated;
+}
+
 /** Stop a running generation at the next stage boundary. */
 export async function cancelRun(user: SessionUser, id: string): Promise<AgentRun> {
   const res = await prisma.agentRun.updateMany({

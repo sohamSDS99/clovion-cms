@@ -272,7 +272,21 @@ export async function executeRun(runId: string): Promise<void> {
       );
       usages.push(qaRes.usage);
       await assertNotCancelled(runId);
-      qaReport = parseJsonOutput<QaReport>(qaRes.text);
+      try {
+        qaReport = parseJsonOutput<QaReport>(qaRes.text);
+      } catch {
+        // QA output wasn't parseable JSON — don't lose the finished draft.
+        // Surface it for human review instead of failing the whole run.
+        qaReport = {
+          pass: false,
+          scores: {},
+          requiredFixes: [
+            "QA verdict could not be parsed automatically — review this draft manually.",
+          ],
+          notes: "The QA model returned an unparseable response; the draft is intact and ready for your review.",
+        } as QaReport;
+        break;
+      }
       if (qaReport.pass || rounds >= MAX_AUTO_REVISIONS) break;
 
       rounds += 1;
