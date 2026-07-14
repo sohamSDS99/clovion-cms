@@ -218,3 +218,35 @@ export async function pingProvider(
     return `${provider}: ${err instanceof Error ? err.message : "network error"}`;
   }
 }
+
+
+/** Chat-capable model ids from a provider (for settings dropdowns). */
+export async function listProviderModels(
+  provider: Provider,
+  apiKey: string
+): Promise<string[]> {
+  const url =
+    provider === "anthropic"
+      ? "https://api.anthropic.com/v1/models?limit=100"
+      : "https://api.openai.com/v1/models";
+  const headers: Record<string, string> =
+    provider === "anthropic"
+      ? { "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION }
+      : { authorization: `Bearer ${apiKey}` };
+  const res = await fetch(url, { headers });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { data?: { id: string }[] };
+  const ids = (data.data ?? []).map((m) => m.id);
+  return filterChatModels(provider, ids);
+}
+
+/** Pure: keep ids that can serve as pipeline chat models. */
+export function filterChatModels(provider: Provider, ids: string[]): string[] {
+  const out = ids.filter((id) =>
+    provider === "anthropic"
+      ? id.startsWith("claude")
+      : /^(gpt-|o\d)/.test(id) &&
+        !/(embedding|whisper|tts|audio|realtime|image|dall-e|moderation|transcribe|search)/i.test(id)
+  );
+  return [...new Set(out)].sort();
+}
