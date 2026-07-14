@@ -77,6 +77,7 @@ export function RunDetail({ id }: { id: string }) {
   const [deleting, setDeleting] = useState(false);
   const [approving, setApproving] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [batch, setBatch] = useState<{
     batch: { status: string; currentLesson: number; courseTitle: string | null; error: unknown; syllabus: unknown };
     lessons: { id: string; status: string; brief: string; contentId: string | null }[];
@@ -379,6 +380,20 @@ export function RunDetail({ id }: { id: string }) {
     }
   }
 
+  async function retry() {
+    setRetrying(true);
+    try {
+      const res = await api.post<{ data: AgentRun }>(`/api/content-agent/runs/${id}/retry`);
+      setRun(res.data);
+      dirty.current = { content: false, spec: false, caption: false };
+      toast.success("Running again from scratch.");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   async function stopRun() {
     setStopping(true);
     try {
@@ -449,6 +464,11 @@ export function RunDetail({ id }: { id: string }) {
             {isActive ? (
               <Button size="sm" variant="secondary" onClick={stopRun} loading={stopping}>
                 Stop
+              </Button>
+            ) : null}
+            {run.status === "FAILED" || (ready && qa && !qa.pass) ? (
+              <Button size="sm" variant="secondary" onClick={retry} loading={retrying}>
+                Try again
               </Button>
             ) : null}
             {ready && !run.approvedAt ? (

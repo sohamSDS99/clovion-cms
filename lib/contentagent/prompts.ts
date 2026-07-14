@@ -193,12 +193,47 @@ export function parseJsonOutput<T>(raw: string): T {
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/, "");
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("Model did not return JSON.");
+
+  // A reasoning model can emit stray "{" in prose before the real object, so
+  // taking the first "{" is unsafe. Scan for the first BALANCED object (brace
+  // matching, string/escape aware) and try each candidate until one parses.
+  for (let i = 0; i < cleaned.length; i++) {
+    if (cleaned[i] !== "{") continue;
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let j = i; j < cleaned.length; j++) {
+      const c = cleaned[j];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === "\\") esc = true;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === "{") depth++;
+      else if (c === "}") {
+        depth--;
+        if (depth === 0) {
+          const candidate = cleaned.slice(i, j + 1);
+          try {
+            return JSON.parse(candidate) as T;
+          } catch {
+            try {
+              // Tolerate trailing commas + // line comments.
+              const relaxed = candidate
+                .replace(/\/\/[^\n]*/g, "")
+                .replace(/,(\s*[}\]])/g, "$1");
+              return JSON.parse(relaxed) as T;
+            } catch {
+              break; // this candidate is not the object; try the next "{"
+            }
+          }
+        }
+      }
+    }
   }
-  return JSON.parse(cleaned.slice(start, end + 1)) as T;
+  throw new Error("Model did not return parseable JSON.");
 }
 
 /** Pull the title out of an article draft's leading `<!--title: … -->` comment. */

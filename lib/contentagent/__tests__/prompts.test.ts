@@ -416,3 +416,25 @@ describe("weighted article QA rubric", () => {
     }
   });
 });
+
+
+describe("parseJsonOutput robustness", () => {
+  it("ignores stray braces in leading prose and finds the real object", async () => {
+    const { parseJsonOutput } = await import("@/lib/contentagent/prompts");
+    const raw = 'Let me score {searchIntent} here.\n\n{"pass": true, "weightedScore": 80}';
+    expect(parseJsonOutput(raw)).toEqual({ pass: true, weightedScore: 80 });
+  });
+  it("tolerates trailing commas and // comments", async () => {
+    const { parseJsonOutput } = await import("@/lib/contentagent/prompts");
+    const raw = '{\n  "pass": false, // flagged\n  "requiredFixes": ["x",],\n}';
+    expect(parseJsonOutput(raw)).toMatchObject({ pass: false });
+  });
+  it("still strips code fences", async () => {
+    const { parseJsonOutput } = await import("@/lib/contentagent/prompts");
+    expect(parseJsonOutput('```json\n{"a":1}\n```')).toEqual({ a: 1 });
+  });
+  it("throws only when there is truly no object", async () => {
+    const { parseJsonOutput } = await import("@/lib/contentagent/prompts");
+    expect(() => parseJsonOutput("no json at all")).toThrow();
+  });
+});
