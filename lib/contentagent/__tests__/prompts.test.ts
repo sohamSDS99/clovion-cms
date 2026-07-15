@@ -7,6 +7,7 @@ import {
   qaMessages,
   splitDeliverable,
   joinDeliverable,
+  referencesBlock,
 } from "@/lib/contentagent/prompts";
 import type { AgentRun } from "@prisma/client";
 
@@ -436,5 +437,50 @@ describe("parseJsonOutput robustness", () => {
   it("throws only when there is truly no object", async () => {
     const { parseJsonOutput } = await import("@/lib/contentagent/prompts");
     expect(() => parseJsonOutput("no json at all")).toThrow();
+  });
+});
+
+
+describe("memory / examples block", () => {
+  it("renders approved examples with the match-not-copy instruction", async () => {
+    const { examplesBlock } = await import("@/lib/contentagent/prompts");
+    const block = examplesBlock([{ title: "", text: "Approved caption body." }]);
+    expect(block).toContain("PROVEN EXAMPLES");
+    expect(block).toContain("Do NOT copy their topic");
+    expect(block).toContain("Approved caption body.");
+  });
+  it("is empty with no examples", async () => {
+    const { examplesBlock } = await import("@/lib/contentagent/prompts");
+    expect(examplesBlock([])).toBe("");
+  });
+});
+
+describe("referencesBlock", () => {
+  it("returns empty string with no references", () => {
+    expect(referencesBlock([])).toBe("");
+  });
+  it("includes the stay-consistent instruction and the reference text", () => {
+    const out = referencesBlock([
+      { title: "The 67% constraint", text: "Buyers drop options fast." },
+    ]);
+    expect(out).toContain("STAY CONSISTENT");
+    expect(out).toContain("do NOT contradict or reframe");
+    expect(out).toContain("The 67% constraint");
+    expect(out).toContain("Buyers drop options fast.");
+  });
+  it("caps referenced text at 3000 chars per piece", () => {
+    const long = "x".repeat(5000);
+    const out = referencesBlock([{ title: "T", text: long }]);
+    expect(out).toContain("x".repeat(3000));
+    expect(out).not.toContain("x".repeat(3001));
+  });
+  it("caps at 5 references", () => {
+    const refs = Array.from({ length: 8 }, (_, i) => ({
+      title: `REF_TITLE_${i}`,
+      text: `body ${i}`,
+    }));
+    const out = referencesBlock(refs);
+    expect(out).toContain("REF_TITLE_4");
+    expect(out).not.toContain("REF_TITLE_5");
   });
 });

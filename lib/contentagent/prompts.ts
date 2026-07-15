@@ -302,6 +302,39 @@ export function joinDeliverable(
 }
 
 
+/** Render past approved pieces as few-shot memory ("" if none). This is the
+ * project-style memory: real content we approved for this exact type, so the
+ * writer matches proven voice and quality instead of starting cold. */
+export function examplesBlock(examples: { title: string; text: string }[]): string {
+  if (examples.length === 0) return "";
+  const blocks = examples
+    .map(
+      (e, i) =>
+        `--- APPROVED EXAMPLE ${i + 1}${e.title ? ` (${e.title})` : ""} ---\n${e.text.slice(0, 2000)}`
+    )
+    .join("\n\n");
+  return `\n\nPROVEN EXAMPLES — pieces we PUBLISHED for this exact content type. Match their voice, rhythm, structure, and quality bar. Do NOT copy their topic or wording; learn the style and clear it:\n\n${blocks}`;
+}
+
+/** Render manually-referenced past pieces the writer must stay CONSISTENT with
+ * ("" if none). Stronger than examplesBlock: the user chose these because the
+ * new piece continues or shares their topic, so framing/terminology/stance must
+ * not be contradicted or reframed. Referenced text is quoted more generously
+ * (the writer needs the substance, not just the style). */
+export function referencesBlock(
+  references: { title: string; text: string }[]
+): string {
+  if (references.length === 0) return "";
+  const blocks = references
+    .slice(0, 5)
+    .map(
+      (r, i) =>
+        `--- REFERENCE ${i + 1}${r.title ? ` (${r.title})` : ""} ---\n${r.text.slice(0, 3000)}`
+    )
+    .join("\n\n");
+  return `\n\nREFERENCED PAST CONTENT — this new piece CONTINUES or SHARES THE TOPIC of the following approved pieces. STAY CONSISTENT with their framing, terminology, and stance; do NOT contradict or reframe what they establish. Build on them rather than restating them, and never repeat their exact wording:\n\n${blocks}`;
+}
+
 /** Render active learned rules as a prompt block ("" if none). */
 export function lessonsBlock(lessons: string[]): string {
   if (lessons.length === 0) return "";

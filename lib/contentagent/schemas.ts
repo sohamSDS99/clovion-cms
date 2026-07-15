@@ -30,6 +30,8 @@ export const createRunSchema = z
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Course slug must be kebab-case [a-z0-9-].")
       .max(200)
       .optional(),
+    // ContentMemory ids the user manually referenced (max 5).
+    referencedMemoryIds: z.array(z.string().uuid()).max(5).optional(),
   })
   .strict();
 export type CreateRunInput = z.infer<typeof createRunSchema>;

@@ -21,6 +21,7 @@ import {
   type ProviderKeys,
 } from "@/lib/ai/providers";
 import { retrieveChunks } from "@/lib/kb/retrieve";
+import { retrieveMemory, getMemoryByIds } from "./memory";
 import { channelSpec } from "./channels";
 import {
   DEFAULT_AGENT_MODELS,
@@ -35,6 +36,8 @@ import {
   joinDeliverable,
   stripImageMarkers,
   lessonsBlock,
+  examplesBlock,
+  referencesBlock,
   learnerMessages,
   syllabusMessages,
   MAX_LESSONS,
@@ -154,6 +157,60 @@ function usageTotals(usages: (Usage | undefined)[]) {
  * Execute a run end-to-end. Safe to call multiple times: only one caller wins
  * the QUEUED claim; others return immediately.
  */
+/**
+ * Re-run ONLY the QA step against the current draft — no re-planning or
+ * re-writing. For when a verdict was flagged/unparseable but the draft is
+ * fine and you just want a fresh read.
+ */
+export async function rerunQa(runId: string): Promise<void> {
+  const run = await prisma.agentRun.findUnique({ where: { id: runId } });
+  if (!run || run.status !== "READY") return;
+  const draft = joinDeliverable(run.draftText, run.specText, run.captionText);
+  if (!draft.trim()) return;
+  try {
+    const config = await getConfig();
+    const keys: ProviderKeys = {
+      anthropic: await getDecryptedAnthropicKey(),
+      openai: await getDecryptedOpenaiKey(),
+    };
+    const models = resolveAgentModels(
+      (config as unknown as { agentModels?: unknown }).agentModels
+    );
+    const spec = channelSpec(run.channel);
+    const findings = (run.plan as { researchFindings?: unknown[] } | null)?.researchFindings;
+    const qaRes = await callRoleWithSearch(
+      keys,
+      models.qa,
+      qaMessages(run, draft, findings),
+      8000,
+      spec.format === "article" && run.allowResearch ? { maxUses: 3 } : undefined
+    );
+    let qaReport: QaReport;
+    try {
+      qaReport = parseJsonOutput<QaReport>(qaRes.text);
+    } catch {
+      qaReport = {
+        pass: false,
+        scores: {},
+        requiredFixes: ["QA verdict could not be parsed automatically — review manually."],
+        notes: "The QA model returned an unparseable response; the draft is intact.",
+      } as QaReport;
+    }
+    const u = qaRes.usage;
+    await prisma.agentRun.update({
+      where: { id: runId },
+      data: {
+        qaReport: qaReport as unknown as Prisma.InputJsonValue,
+        tokensPrompt: { increment: u?.prompt_tokens ?? 0 },
+        tokensCompletion: { increment: u?.completion_tokens ?? 0 },
+        costUsd: { increment: u?.cost ?? 0 },
+      },
+    });
+  } catch {
+    // best-effort; leave the existing verdict untouched on failure
+  }
+}
+
 export async function executeRun(runId: string): Promise<void> {
   const claim = await prisma.agentRun.updateMany({
     where: { id: runId, status: "QUEUED" },
@@ -199,6 +256,36 @@ export async function executeRun(runId: string): Promise<void> {
     });
     const lessons = lessonsBlock(lessonRows.map((l) => l.lesson));
 
+    // MEMORY (auto-retrieved): topically-similar past approved pieces on this
+    // channel become few-shot examples — semantic retrieval over content_memory
+    // replaces the old recency heuristic so the writer matches proven work on
+    // the SAME subject, not just the most recent piece of the exact type.
+    // Best-effort: retrieval failure yields no examples and generation proceeds.
+    const retrieved = await retrieveMemory({
+      query: run.brief + " " + (run.sourceReport ?? ""),
+      channel: run.channel,
+      excludeSourceId: run.id,
+      k: 3,
+    });
+    const examples = examplesBlock(
+      retrieved.map((r) => ({ title: r.title, text: r.text }))
+    );
+
+    // MEMORY (manual references): pieces the user explicitly picked. These take
+    // priority over auto-retrieved examples — placed AFTER examplesBlock so they
+    // are the most recent/salient context, with a stronger "stay consistent"
+    // instruction and a more generous text budget.
+    let references = "";
+    const refIds = run.referencedMemoryIds ?? [];
+    if (refIds.length > 0) {
+      const refRows = await getMemoryByIds(refIds);
+      references = referencesBlock(
+        refRows.map((r) => ({ title: r.title, text: r.text }))
+      );
+    }
+
+    const memory = lessons + examples + references;
+
     // Optional grounding from the knowledge base (best-effort).
     let knowledge = "";
     try {
@@ -219,7 +306,7 @@ export async function executeRun(runId: string): Promise<void> {
     let plan = run.plan as unknown;
     if (!isFeedbackRound) {
       const planMsgs = orchestratorMessages(run);
-      if (lessons) planMsgs[0].content += lessons;
+      if (memory) planMsgs[0].content += memory;
       if (knowledge) planMsgs[1].content += knowledge;
       const planRes = await callRoleWithSearch(
         keys,
@@ -250,7 +337,7 @@ export async function executeRun(runId: string): Promise<void> {
       draftMsgs = writerMessages(run, plan);
       if (knowledge) draftMsgs[1].content += knowledge;
     }
-    if (lessons) draftMsgs[0].content += lessons;
+    if (memory) draftMsgs[0].content += memory;
     const draftRes = await callRole(keys, models.writer, draftMsgs, maxTokens);
     await assertNotCancelled(runId);
     usages.push(draftRes.usage);

@@ -78,6 +78,7 @@ export function RunDetail({ id }: { id: string }) {
   const [approving, setApproving] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [rerunningQa, setRerunningQa] = useState(false);
   const [batch, setBatch] = useState<{
     batch: { status: string; currentLesson: number; courseTitle: string | null; error: unknown; syllabus: unknown };
     lessons: { id: string; status: string; brief: string; contentId: string | null }[];
@@ -380,6 +381,19 @@ export function RunDetail({ id }: { id: string }) {
     }
   }
 
+  async function rerunQa() {
+    setRerunningQa(true);
+    try {
+      const res = await api.post<{ data: AgentRun }>(`/api/content-agent/runs/${id}/rerun-qa`);
+      setRun(res.data);
+      toast.success("QA re-run on the current draft.");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setRerunningQa(false);
+    }
+  }
+
   async function retry() {
     setRetrying(true);
     try {
@@ -466,7 +480,7 @@ export function RunDetail({ id }: { id: string }) {
                 Stop
               </Button>
             ) : null}
-            {run.status === "FAILED" || (ready && qa && !qa.pass) ? (
+            {run.status === "FAILED" ? (
               <Button size="sm" variant="secondary" onClick={retry} loading={retrying}>
                 Try again
               </Button>
@@ -1029,9 +1043,21 @@ export function RunDetail({ id }: { id: string }) {
                 <CardHeader
                   title="QA verdict"
                   action={
-                    <Badge tone={qa.pass ? "published" : "review"}>
-                      {qa.pass ? "Passed" : "Flagged"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {ready ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={rerunQa}
+                          loading={rerunningQa}
+                        >
+                          Re-run QA
+                        </Button>
+                      ) : null}
+                      <Badge tone={qa.pass ? "published" : "review"}>
+                        {qa.pass ? "Passed" : "Flagged"}
+                      </Badge>
+                    </div>
                   }
                 />
                 <div className="flex flex-col gap-3 p-4 pt-0">

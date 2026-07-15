@@ -45,6 +45,14 @@ export function ContentAgentScreen() {
 
   const [lessons, setLessons] = useState<AgentLesson[]>([]);
 
+  // Manual "reference past content" picker.
+  type MemoryHit = { id: string; title: string; sourceType: string; snippet: string };
+  const [showReferences, setShowReferences] = useState(false);
+  const [refQuery, setRefQuery] = useState("");
+  const [refResults, setRefResults] = useState<MemoryHit[]>([]);
+  const [refSearching, setRefSearching] = useState(false);
+  const [selectedRefs, setSelectedRefs] = useState<MemoryHit[]>([]);
+
   const profileOptions = profilesFor(uiChannel);
   const contentTypeOptions = contentTypesFor(uiChannel);
   const angleOptions = useMemo(
@@ -70,6 +78,25 @@ export function ContentAgentScreen() {
       .then((r) => setLessons(r.data))
       .catch(() => {});
   }, []);
+
+  // Debounced content-memory search for the reference picker.
+  useEffect(() => {
+    const q = refQuery.trim();
+    if (!showReferences || q.length < 2) {
+      setRefResults([]);
+      setRefSearching(false);
+      return;
+    }
+    setRefSearching(true);
+    const t = setTimeout(() => {
+      api
+        .get<{ data: MemoryHit[] }>("/api/content-agent/memory/search", { q })
+        .then((r) => setRefResults(r.data))
+        .catch(() => setRefResults([]))
+        .finally(() => setRefSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [refQuery, showReferences]);
 
   async function addFiles(files: FileList | File[]) {
     setExtracting(true);
@@ -121,6 +148,9 @@ export function ContentAgentScreen() {
         brief,
         allowResearch,
         ...(combinedSource ? { sourceReport: combinedSource } : {}),
+        ...(selectedRefs.length > 0
+          ? { referencedMemoryIds: selectedRefs.map((r) => r.id) }
+          : {}),
       });
       toast.success("Run started — the agents are working.");
       router.push(`/content-agent/${res.data.id}`);
@@ -351,6 +381,99 @@ export function ContentAgentScreen() {
                   doesn&apos;t already provide it).
                 </span>
               </label>
+
+              {/* Reference past content (optional) — semantic memory picker. */}
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReferences((v) => !v)}
+                  className="flex items-center gap-1 text-left text-sm text-ink-mute hover:text-ink"
+                >
+                  <span className="text-xs">{showReferences ? "\u25be" : "\u25b8"}</span>
+                  Reference past content (optional)
+                  {selectedRefs.length > 0 ? (
+                    <span className="ml-1 text-xs text-ink-faint">
+                      ({selectedRefs.length} selected)
+                    </span>
+                  ) : null}
+                </button>
+
+                {selectedRefs.length > 0 ? (
+                  <ul className="flex flex-wrap gap-1">
+                    {selectedRefs.map((r) => (
+                      <li
+                        key={r.id}
+                        className="flex items-center gap-1 rounded bg-paper-sunken px-2 py-1 text-xs text-ink"
+                      >
+                        <span className="max-w-[16rem] truncate">{r.title}</span>
+                        <button
+                          type="button"
+                          aria-label={`Remove reference ${r.title}`}
+                          className="text-ink-mute hover:text-ink"
+                          onClick={() =>
+                            setSelectedRefs((prev) => prev.filter((x) => x.id !== r.id))
+                          }
+                        >
+                          \u2715
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {showReferences ? (
+                  <FieldShell
+                    label=""
+                    hint="Search prior approved pieces; the writer will stay consistent with the ones you add."
+                  >
+                    <Input
+                      value={refQuery}
+                      onChange={(e) => setRefQuery(e.target.value)}
+                      placeholder="Search past content by topic or title…"
+                    />
+                    {refQuery.trim().length >= 2 ? (
+                      <div className="mt-2 max-h-56 overflow-auto rounded border border-line">
+                        {refSearching ? (
+                          <p className="px-3 py-2 text-xs text-ink-mute">Searching…</p>
+                        ) : refResults.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-ink-mute">No matches.</p>
+                        ) : (
+                          <ul className="divide-y divide-line">
+                            {refResults.map((r) => {
+                              const added = selectedRefs.some((x) => x.id === r.id);
+                              return (
+                                <li
+                                  key={r.id}
+                                  className="flex items-start justify-between gap-2 px-3 py-2"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm text-ink">{r.title}</p>
+                                    <p className="truncate text-xs text-ink-faint">
+                                      {r.snippet}
+                                    </p>
+                                  </div>
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={added || selectedRefs.length >= 5}
+                                    onClick={() =>
+                                      setSelectedRefs((prev) =>
+                                        prev.some((x) => x.id === r.id) ? prev : [...prev, r]
+                                      )
+                                    }
+                                  >
+                                    {added ? "Added" : "Add"}
+                                  </Button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </FieldShell>
+                ) : null}
+              </div>
 
               <Button
                 onClick={create}
