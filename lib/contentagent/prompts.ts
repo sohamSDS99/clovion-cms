@@ -106,7 +106,7 @@ export function writerMessages(run: AgentRun, plan: unknown): ChatMessage[] {
   return [
     {
       role: "system",
-      content: `You are Clovion's writer. Execute the plan faithfully in the channel voice. Never invent numbers — only use facts from the brief, the source material, or the plan (including its researchFindings, which are verified). When you use a researchFinding, attribute it: articles link the source URL; captions name the source inline ("per Forrester, 2026").\n\n${voiceBlock(run)}\n\n${formatRule}`,
+      content: `You are Clovion's writer.\n\nORIGINALITY MANDATE (non-negotiable — this content is published and plagiarism-checked):\n- Every sentence must be written FRESH, in your own words. Source material, attachments, knowledge context, research findings, referenced pieces, and web results are INPUTS TO UNDERSTAND — never text to reproduce, paraphrase closely, or lightly reword.\n- Do NOT copy or near-copy phrasing, sentence structure, lists, or headings from any source. Synthesize the idea, then express it your own way.\n- Direct quotes are allowed ONLY when quoting is the point (a named expert/report), kept short (≤25 words), in quotation marks, with attribution. Everything else is original prose.\n- Facts and numbers come from the inputs; the WORDS are yours. Using a fact ≠ reusing the sentence that carried it.\n- Provided examples/references guide VOICE and STANCE only — never lift their wording.\n\nExecute the plan faithfully in the channel voice. Never invent numbers — only use facts from the brief, the source material, or the plan (including its researchFindings, which are verified). When you use a researchFinding, attribute it: articles link the source URL; captions name the source inline ("per Forrester, 2026").\n\n${voiceBlock(run)}\n\n${formatRule}`,
     },
     {
       role: "user",
@@ -143,7 +143,7 @@ export function qaMessages(
   const spec = channelSpec(run.channel);
   const isArticle = spec.format === "article";
 
-  const hardChecks = `HARD CHECKS (any failure = automatic fail, regardless of scores):\n1. FABRICATION: every number in the draft must exist in the brief/source material below or in the verified research findings. Any invented number = automatic fail. Numbers from research findings must carry their attribution.\n2. Banned words and channel rules (length, emoji/hashtag policy, structure, CTA style).\n3. NEGATIVE PARALLELISM: count every "not X, but Y" / "isn't A — it's B" / "X isn't the problem, Y is" construction, including in headings and microcopy. MORE THAN ONE in the piece = required fix, quoting each instance and demanding an affirmative rewrite.\n4. TITLES: the title must be the reader's search question or desired outcome in their words — reject mechanic-first, research-first, or vague-clever titles; a title the buyer wouldn't type or feel = required fix with a rewrite suggestion.\n5. CUSTOMER-FIRST FRAMING: every statistic and product mechanic must carry the reader's business stake before (or with) it — a bare "so what?" number anywhere (headings, captions, slides, microcopy included) = required fix with the stake→mechanism→evidence rewrite.`;
+  const hardChecks = `HARD CHECKS (any failure = automatic fail, regardless of scores):\n0. ORIGINALITY: the draft must be original prose. Flag ANY passage that reproduces or closely paraphrases the source material, attachments, knowledge context, research findings, referenced pieces, or (when web search is available, check the actual top results) published web content — same sentences, structure, or lightly-reworded phrasing. Unattributed near-verbatim text = automatic fail; quote each offending passage and demand an original rewrite. Short attributed quotes (≤25 words, in quotation marks) are fine.\n1. FABRICATION: every number in the draft must exist in the brief/source material below or in the verified research findings. Any invented number = automatic fail. Numbers from research findings must carry their attribution.\n2. Banned words and channel rules (length, emoji/hashtag policy, structure, CTA style).\n3. NEGATIVE PARALLELISM: count every "not X, but Y" / "isn't A — it's B" / "X isn't the problem, Y is" construction, including in headings and microcopy. MORE THAN ONE in the piece = required fix, quoting each instance and demanding an affirmative rewrite.\n4. TITLES: the title must be the reader's search question or desired outcome in their words — reject mechanic-first, research-first, or vague-clever titles; a title the buyer wouldn't type or feel = required fix with a rewrite suggestion.\n5. CUSTOMER-FIRST FRAMING: every statistic and product mechanic must carry the reader's business stake before (or with) it — a bare "so what?" number anywhere (headings, captions, slides, microcopy included) = required fix with the stake→mechanism→evidence rewrite.`;
 
   if (!isArticle) {
     return [
@@ -313,7 +313,7 @@ export function examplesBlock(examples: { title: string; text: string }[]): stri
         `--- APPROVED EXAMPLE ${i + 1}${e.title ? ` (${e.title})` : ""} ---\n${e.text.slice(0, 2000)}`
     )
     .join("\n\n");
-  return `\n\nPROVEN EXAMPLES — pieces we PUBLISHED for this exact content type. Match their voice, rhythm, structure, and quality bar. Do NOT copy their topic or wording; learn the style and clear it:\n\n${blocks}`;
+  return `\n\nPROVEN EXAMPLES — pieces we PUBLISHED for this exact content type. Study them ONLY for voice, rhythm, and quality bar. These are already public: reusing their sentences or phrasing would be self-plagiarism. Learn the style, write something entirely new:\n\n${blocks}`;
 }
 
 /** Render manually-referenced past pieces the writer must stay CONSISTENT with
@@ -332,7 +332,7 @@ export function referencesBlock(
         `--- REFERENCE ${i + 1}${r.title ? ` (${r.title})` : ""} ---\n${r.text.slice(0, 3000)}`
     )
     .join("\n\n");
-  return `\n\nREFERENCED PAST CONTENT — this new piece CONTINUES or SHARES THE TOPIC of the following approved pieces. STAY CONSISTENT with their framing, terminology, and stance; do NOT contradict or reframe what they establish. Build on them rather than restating them, and never repeat their exact wording:\n\n${blocks}`;
+  return `\n\nREFERENCED PAST CONTENT — this new piece CONTINUES or SHARES THE TOPIC of the following pieces (likely already published). Stay CONSISTENT with their framing, terminology, and stance, and build on them — but write 100% original sentences. These are public text: copying or lightly rewording them = plagiarism against our own live pages. Reference the ideas; never the wording:\n\n${blocks}`;
 }
 
 /** Render active learned rules as a prompt block ("" if none). */

@@ -446,7 +446,8 @@ describe("memory / examples block", () => {
     const { examplesBlock } = await import("@/lib/contentagent/prompts");
     const block = examplesBlock([{ title: "", text: "Approved caption body." }]);
     expect(block).toContain("PROVEN EXAMPLES");
-    expect(block).toContain("Do NOT copy their topic");
+    expect(block).toContain("write something entirely new");
+    expect(block).toContain("self-plagiarism");
     expect(block).toContain("Approved caption body.");
   });
   it("is empty with no examples", async () => {
@@ -463,8 +464,8 @@ describe("referencesBlock", () => {
     const out = referencesBlock([
       { title: "The 67% constraint", text: "Buyers drop options fast." },
     ]);
-    expect(out).toContain("STAY CONSISTENT");
-    expect(out).toContain("do NOT contradict or reframe");
+    expect(out).toContain("Stay CONSISTENT");
+    expect(out).toContain("never the wording");
     expect(out).toContain("The 67% constraint");
     expect(out).toContain("Buyers drop options fast.");
   });
@@ -482,5 +483,31 @@ describe("referencesBlock", () => {
     const out = referencesBlock(refs);
     expect(out).toContain("REF_TITLE_4");
     expect(out).not.toContain("REF_TITLE_5");
+  });
+});
+
+
+describe("originality / anti-plagiarism", () => {
+  it("writer leads with the originality mandate in every channel", async () => {
+    const { writerMessages } = await import("@/lib/contentagent/prompts");
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "educational-guide" } as AgentRun;
+    for (const r of [run, artRun]) {
+      const c = writerMessages(r as AgentRun, {})[0].content;
+      expect(c).toContain("ORIGINALITY MANDATE");
+      expect(c).toContain("written FRESH");
+      expect(c).toContain("never text to reproduce");
+    }
+  });
+  it("QA has an originality hard-check on both paths", async () => {
+    const { qaMessages } = await import("@/lib/contentagent/prompts");
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "opinion" } as AgentRun;
+    for (const r of [run, artRun]) {
+      expect(qaMessages(r as AgentRun, "draft")[0].content).toContain("0. ORIGINALITY");
+    }
+  });
+  it("examples and references forbid reusing wording", async () => {
+    const { examplesBlock, referencesBlock } = await import("@/lib/contentagent/prompts");
+    expect(examplesBlock([{ title: "", text: "x" }])).toContain("self-plagiarism");
+    expect(referencesBlock([{ title: "", text: "x" }])).toContain("never the wording");
   });
 });
