@@ -622,6 +622,7 @@ model AgentRun {
   // Course outlines: the editable, structured lesson plan derived from the
   // outline text. Source of truth for one-click course generation.
   outlineSyllabus Json?
+  referencedMemoryIds String[]   @default([])
   // filed into that course (typeData.courseSlug) instead of the blog.
   targetCourseSlug String?
   brief        String         @db.Text
@@ -730,4 +731,24 @@ model AgentAsset {
   @@unique([runId, target])
   @@index([runId])
   @@map("agent_assets")
+}
+
+model ContentMemory {
+  id          String                       @id @default(uuid()) @db.Uuid
+  // "agent_run" | "content_item"
+  sourceType  String
+  sourceId    String                       @db.Uuid
+  // null for CMS ContentItems (no channel concept).
+  channel     AgentChannel?
+  postType    String?
+  title       String
+  // Full content used for display + prompt injection.
+  text        String                       @db.Text
+  embedding   Unsupported("vector(1536)")?
+  createdById String?                      @db.Uuid
+  createdAt   DateTime                     @default(now())
+
+  @@unique([sourceType, sourceId])
+  @@index([channel])
+  @@map("content_memory")
 }

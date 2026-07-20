@@ -223,6 +223,12 @@ CHANNEL VOICE — Blog / long-form articles (clovion.ai):
     BRIEF: (design only) precise description of the diagram — labels, flow,
     data shown — enough for a designer to build it without the article
 - Length: 1,200–2,000 words unless the brief says otherwise.
+- CITATIONS & LINKS: every external source and every internal link is an
+  INLINE hyperlink wrapped around the natural words in the sentence (the
+  publisher's name, the study, the product, the concept) — <a href="…">those
+  words</a>. NEVER add a bare-parenthetical citation "(Gartner, 2026)", a
+  trailing "[source]", a "Source: …" line, or a URL printed as text. The link
+  rides the word you're already saying.
 - No keyword stuffing, no thin "ultimate guide" filler. Internal links to
   clovion.ai surfaces where natural: use href="{{URL:surface-name}}"
   placeholders (e.g. {{URL:free-scan}}, {{URL:ai-visibility-tracking}}).

@@ -10,7 +10,8 @@ import { htmlToTiptap } from "@/lib/ai/coerce";
 import { buildCourseSourceReport } from "@/lib/content/courseManager";
 import { channelSpec, isValidPostType, isValidSocialFormat } from "./channels";
 import { isValidSize } from "./sizes";
-import { executeRun, learnFromRun } from "./pipeline";
+import { executeRun, learnFromRun, rerunQa } from "./pipeline";
+import { indexApprovedRun } from "./memory";
 import { extractArticleMeta } from "./prompts";
 import type { CreateRunInput } from "./schemas";
 import { Prisma } from "@prisma/client";
@@ -64,6 +65,7 @@ export async function createRun(
       brief: input.brief.trim(),
       sourceReport,
       targetCourseSlug: input.targetCourseSlug ?? null,
+      referencedMemoryIds: input.referencedMemoryIds ?? [],
       createdById: user.id,
     },
   });
@@ -147,7 +149,16 @@ export async function approveRun(user: SessionUser, id: string): Promise<AgentRu
     action: "approved",
   });
   void learnFromRun(id);
+  // Index the approved content into semantic memory (fire-and-forget,
+  // best-effort: must never block or fail approval).
+  void indexApprovedRun(id);
   return updated;
+}
+
+/** Search content memory for the manual-reference picker. */
+export async function searchContentMemory(q: string) {
+  const { searchMemory } = await import("./memory");
+  return searchMemory(q, 10);
 }
 
 /** Active learned rules, newest first. */
@@ -209,6 +220,17 @@ export async function updateOutlineSyllabus(
     diff: { lessons: lessons.length },
   });
   return updated;
+}
+
+/** Re-run only the QA step on the existing draft (fresh verdict, same draft). */
+export async function rerunQaForRun(user: SessionUser, id: string): Promise<AgentRun> {
+  const run = await getRun(id);
+  if (run.status !== "READY") {
+    throw new ConflictError("QA can only be re-run once the draft is ready.");
+  }
+  await recordAudit({ actorId: user.id, entityType: "agent_run", entityId: id, action: "qa_rerun" });
+  await rerunQa(id);
+  return getRun(id);
 }
 
 /** Re-run a finished/failed run fresh (new draft + QA), no feedback needed. */
