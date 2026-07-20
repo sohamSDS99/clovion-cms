@@ -511,3 +511,20 @@ describe("originality / anti-plagiarism", () => {
     expect(referencesBlock([{ title: "", text: "x" }])).toContain("never the wording");
   });
 });
+
+
+describe("inline citation links", () => {
+  it("article writer requires inline hyperlinks, forbids parentheticals", async () => {
+    const { writerMessages } = await import("@/lib/contentagent/prompts");
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "educational-guide" } as AgentRun;
+    const c = writerMessages(artRun, {})[0].content;
+    expect(c).toContain("CITATIONS & LINKS");
+    expect(c).toContain("INLINE hyperlink");
+    expect(c).toContain('(Gartner, 2026)');
+  });
+  it("QA flags parenthetical citations in articles", async () => {
+    const { qaMessages } = await import("@/lib/contentagent/prompts");
+    const artRun = { ...run, channel: "BLOG_ARTICLE", postType: "opinion" } as AgentRun;
+    expect(qaMessages(artRun, "draft")[0].content).toContain("LINKING (articles)");
+  });
+});
